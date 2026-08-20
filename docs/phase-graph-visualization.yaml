@@ -1,0 +1,56 @@
+phase: "GRAPH-VISUALIZATION-V1"
+status: "PASS"
+baseline_before: "GUIALITA-MEMORY-GRAPH-V1-PASS"
+baseline_after: "GUIALITA-GRAPH-VISUALIZATION-V1-PASS"
+date: "2026-08-19"
+duration: "session"
+
+summary: >
+  Browser-basierte SVG-Visualisierung des Memory Graph mit entity search,
+  node/edge selection, provenance inspection und force-directed layout.
+
+changes:
+  - file: "backend/memory/store.py"
+    type: "MODIFY"
+    description: "get_bounded_graph() Methode für bounded graph data"
+  - file: "backend/main.py"
+    type: "MODIFY"
+    description: "GET /memory/graph endpoint + GET /graph route"
+  - file: "frontend/graph.html"
+    type: "CREATE"
+    description: "SVG graph visualization with force-directed layout"
+  - file: "frontend/index.html"
+    type: "MODIFY"
+    description: "Link to /graph in footer"
+  - file: "tests/test_graph_visualization.py"
+    type: "CREATE"
+    description: "13 tests (T01-T13): API + regression"
+
+tests:
+  total: 59
+  api: 8
+  regression: 51
+  status: "PASS"
+
+real_e2e:
+  graph_nodes: 43
+  graph_edges: 250
+  truncated: true
+  total_entities: 43
+  total_relations: 548
+  provenance_valid: true
+  page_size_bytes: 17842
+  ollama_pid_before: 2492667
+  ollama_pid_after: 2492667
+  ollama_unchanged: true
+
+acceptance:
+  - "GET /memory/graph liefert nodes+edges+truncated mit Provenance"
+  - "SVG-Visualisierung mit force-directed layout"
+  - "Node selection mit highlight connected nodes"
+  - "Edge selection mit provenance panel"
+  - "Entity search field"
+  - "Refresh + Fit buttons"
+  - "Status display (Entities, Relations, Displayed, Truncated)"
+  - "Regression: alle bestehenden Tests unverändert PASS"
+  - "Ollama PID unverändert"

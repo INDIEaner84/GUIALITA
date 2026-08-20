@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUIALITA - Memory Graph</title>
+<style>
+  :root {
+    --bg: #101418; --panel: #1a2027; --border: #2a313a;
+    --text: #dce3ea; --dim: #7d8a99;
+    --green: #3ddc84; --yellow: #f5c542; --red: #ff5f56; --blue: #58a6ff;
+    --node-project: #3ddc84; --node-model: #58a6ff; --node-tool: #f5c542;
+    --node-concept: #b39ddb; --node-path: #78909c; --node-default: #7d8a99;
+    --edge-default: #3a4556; --edge-selected: #58a6ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "DejaVu Sans", system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+  .sidebar { width: 320px; min-width: 320px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar h1 { font-size: 16px; padding: 14px 16px 8px; color: var(--dim); letter-spacing: 1px; border-bottom: 1px solid var(--border); }
+  .sidebar-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .sidebar-section h2 { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+  .search-row { display: flex; gap: 6px; }
+  .search-row input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+  .search-row input:focus { outline: none; border-color: var(--blue); }
+  .search-row button { background: var(--blue); color: #08131f; border: none; border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: bold; cursor: pointer; }
+  .search-row button:hover { filter: brightness(1.15); }
+
+  .stat { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+  .stat .label { color: var(--dim); }
+  .stat .value { font-family: monospace; }
+  .truncated-badge { background: var(--red); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+
+  #detail-panel { flex: 1; overflow-y: auto; padding: 12px 16px; }
+  .detail-title { font-size: 14px; font-weight: bold; margin-bottom: 6px; }
+  .detail-type { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .detail-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+  .detail-row .label { color: var(--dim); }
+  .detail-row .value { font-family: monospace; word-break: break-all; max-width: 180px; text-align: right; }
+  .rel-list { list-style: none; margin-top: 6px; }
+  .rel-list li { font-size: 12px; padding: 4px 0; border-top: 1px solid var(--border); }
+  .rel-type { color: var(--yellow); font-weight: bold; }
+  .rel-target { color: var(--blue); cursor: pointer; }
+  .rel-target:hover { text-decoration: underline; }
+  .rel-mem { color: var(--dim); font-size: 10px; }
+  .empty-detail { color: var(--dim); font-size: 13px; padding: 20px 0; text-align: center; }
+
+  .graph-area { flex: 1; position: relative; overflow: hidden; }
+  svg { width: 100%; height: 100%; display: block; }
+  .graph-status { position: absolute; bottom: 10px; left: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 11px; color: var(--dim); }
+  .graph-controls { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+  .graph-controls button { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+  .graph-controls button:hover { border-color: var(--blue); }
+
+  .legend { position: absolute; top: 10px; left: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 11px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h1>MEMORY GRAPH</h1>
+
+  <div class="sidebar-section">
+    <div class="search-row">
+      <input id="search-input" type="text" placeholder="Entity suchen…">
+      <button id="search-btn">Suchen</button>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <h2>Status</h2>
+    <div class="stat"><span class="label">Entities</span><span class="value" id="stat-entities">-</span></div>
+    <div class="stat"><span class="label">Relations</span><span class="value" id="stat-relations">-</span></div>
+    <div class="stat"><span class="label">Displayed Nodes</span><span class="value" id="stat-nodes">-</span></div>
+    <div class="stat"><span class="label">Displayed Edges</span><span class="value" id="stat-edges">-</span></div>
+    <div class="stat"><span class="label">Graph</span><span class="value" id="stat-truncated">COMPLETE</span></div>
+  </div>
+
+  <div id="detail-panel">
+    <div class="empty-detail">Knoten oder Kante auswählen</div>
+  </div>
+</div>
+
+<div class="graph-area">
+  <div class="legend" id="legend"></div>
+  <div class="graph-controls">
+    <button id="btn-refresh">Refresh</button>
+    <button id="btn-fit">Fit</button>
+  </div>
+  <svg id="graph-svg"></svg>
+  <div class="graph-status" id="graph-status">Lade Graph…</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const svg = $("graph-svg");
+const NS = "http://www.w3.org/2000/svg";
+
+let graphData = { nodes: [], edges: [] };
+let nodeMap = {};
+let simulation = null;
+let selectedNode = null;
+let selectedEdge = null;
+let transform = { x: 0, y: 0, k: 1 };
+let dragging = null;
+let panStart = null;
+
+const TYPE_COLORS = {
+  project: "#3ddc84", model: "#58a6ff", tool: "#f5c542",
+  concept: "#b39ddb", path: "#78909c"
+};
+const DEFAULT_COLOR = "#7d8a99";
+
+function nodeColor(type) { return TYPE_COLORS[type] || DEFAULT_COLOR; }
+
+async function loadGraph() {
+  $("graph-status").textContent = "Lade Graph…";
+  try {
+    const r = await fetch("/memory/graph?max_nodes=100&max_edges=250");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    if (d.status !== "success") throw new Error(d.error);
+    graphData = d;
+    $("stat-entities").textContent = d.entity_count;
+    $("stat-relations").textContent = d.relation_count;
+    $("stat-nodes").textContent = d.displayed_nodes;
+    $("stat-edges").textContent = d.displayed_edges;
+    if (d.truncated) {
+      $("stat-truncated").innerHTML = "TRUNCATED<span class='truncated-badge'>!</span>";
+    } else {
+      $("stat-truncated").textContent = "COMPLETE";
+    }
+    nodeMap = {};
+    d.nodes.forEach(n => { nodeMap[n.id] = n; });
+    initSimulation();
+    renderGraph();
+    $("graph-status").textContent = d.displayed_nodes + " nodes, " + d.displayed_edges + " edges";
+  } catch (e) {
+    $("graph-status").textContent = "Fehler: " + e.message;
+  }
+}
+
+function initSimulation() {
+  const W = svg.clientWidth || 800;
+  const H = svg.clientHeight || 600;
+  const cx = W / 2, cy = H / 2;
+  graphData.nodes.forEach((n, i) => {
+    const angle = (2 * Math.PI * i) / Math.max(graphData.nodes.length, 1);
+    const r = 150 + Math.random() * 100;
+    n.x = cx + Math.cos(angle) * r;
+    n.y = cy + Math.sin(angle) * r;
+    n.vx = 0; n.vy = 0;
+    n.fx = null; n.fy = null;
+  });
+
+  if (simulation) clearInterval(simulation);
+  let running = true;
+  const alpha = 0.3;
+  const repulsion = 8000;
+  const attraction = 0.005;
+  const center = 0.01;
+  const damping = 0.85;
+
+  simulation = setInterval(() => {
+    if (!running) return;
+    const nodes = graphData.nodes;
+    const edges = graphData.edges;
+
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[j].x - nodes[i].x;
+        let dy = nodes[j].y - nodes[i].y;
+        let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        let force = repulsion / (dist * dist);
+        let fx = (dx / dist) * force;
+        let fy = (dy / dist) * force;
+        if (nodes[i].fx === null) { nodes[i].vx -= fx; nodes[i].vy -= fy; }
+        if (nodes[j].fx === null) { nodes[j].vx += fx; nodes[j].vy += fy; }
+      }
+    }
+
+    edges.forEach(e => {
+      const s = nodeMap[e.source], t = nodeMap[e.target];
+      if (!s || !t) return;
+      let dx = t.x - s.x, dy = t.y - s.y;
+      let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      let force = dist * attraction;
+      let fx = (dx / dist) * force;
+      let fy = (dy / dist) * force;
+      if (s.fx === null) { s.vx += fx; s.vy += fy; }
+      if (t.fx === null) { t.vx -= fx; t.vy -= fy; }
+    });
+
+    nodes.forEach(n => {
+      if (n.fx !== null) { n.x = n.fx; n.y = n.fy; n.vx = 0; n.vy = 0; return; }
+      n.vx += (cx - n.x) * center;
+      n.vy += (cy - n.y) * center;
+      n.vx *= damping;
+      n.vy *= damping;
+      n.x += n.vx * alpha;
+      n.y += n.vy * alpha;
+    });
+
+    renderGraph();
+  }, 30);
+}
+
+function renderGraph() {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const g = document.createElementNS(NS, "g");
+  g.setAttribute("id", "graph-content");
+  svg.appendChild(g);
+
+  const adj = {};
+  if (selectedNode) {
+    adj[selectedNode] = true;
+    graphData.edges.forEach(e => {
+      if (e.source === selectedNode) adj[e.target] = true;
+      if (e.target === selectedNode) adj[e.source] = true;
+    });
+  }
+
+  graphData.edges.forEach(e => {
+    const s = nodeMap[e.source], t = nodeMap[e.target];
+    if (!s || !t) return;
+    const line = document.createElementNS(NS, "line");
+    line.setAttribute("x1", s.x); line.setAttribute("y1", s.y);
+    line.setAttribute("x2", t.x); line.setAttribute("y2", t.y);
+    const isSel = selectedEdge && selectedEdge.id === e.id;
+    const isAdj = selectedNode && (adj[e.source] || isSel);
+    line.setAttribute("stroke", isSel ? "#58a6ff" : (isAdj ? "#4a6a8a" : "#2a313a"));
+    line.setAttribute("stroke-width", isSel ? "2.5" : (isAdj ? "1.5" : "0.8"));
+    line.setAttribute("data-edge-id", e.id);
+    line.style.cursor = "pointer";
+    g.appendChild(line);
+
+    const mx = (s.x + t.x) / 2, my = (s.y + t.y) / 2;
+    const txt = document.createElementNS(NS, "text");
+    txt.setAttribute("x", mx); txt.setAttribute("y", my - 4);
+    txt.setAttribute("text-anchor", "middle");
+    txt.setAttribute("fill", isSel ? "#58a6ff" : "#4a5566");
+    txt.setAttribute("font-size", "9");
+    txt.textContent = e.relation;
+    txt.style.pointerEvents = "none";
+    g.appendChild(txt);
+  });
+
+  graphData.nodes.forEach(n => {
+    const isSel = selectedNode === n.id;
+    const isAdj2 = selectedNode && adj[n.id];
+    const circle = document.createElementNS(NS, "circle");
+    circle.setAttribute("cx", n.x); circle.setAttribute("cy", n.y);
+    circle.setAttribute("r", isSel ? 12 : (isAdj2 ? 9 : 7));
+    circle.setAttribute("fill", nodeColor(n.entity_type));
+    circle.setAttribute("stroke", isSel ? "#fff" : (isAdj2 ? "#58a6ff" : "transparent"));
+    circle.setAttribute("stroke-width", isSel ? "2" : (isAdj2 ? "1.5" : "0"));
+    circle.setAttribute("opacity", selectedNode && !isSel && !isAdj2 ? "0.25" : "1");
+    circle.setAttribute("data-node-id", n.id);
+    circle.style.cursor = "pointer";
+    g.appendChild(circle);
+
+    const label = document.createElementNS(NS, "text");
+    label.setAttribute("x", n.x); label.setAttribute("y", n.y + 18);
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("fill", isSel ? "#fff" : (isAdj2 ? "#b0c4de" : "#5a6a7a"));
+    label.setAttribute("font-size", isSel ? "11" : "9");
+    label.textContent = n.label.length > 20 ? n.label.slice(0, 18) + "…" : n.label;
+    label.style.pointerEvents = "none";
+    if (selectedNode && !isSel && !isAdj2) label.setAttribute("opacity", "0.25");
+    g.appendChild(label);
+  });
+
+  applyTransform(g);
+}
+
+function applyTransform(g) {
+  g.setAttribute("transform", `translate(${transform.x},${transform.y}) scale(${transform.k})`);
+}
+
+function showNodeDetail(nodeId) {
+  const n = nodeMap[nodeId];
+  if (!n) return;
+  selectedNode = nodeId;
+  selectedEdge = null;
+  const panel = $("detail-panel");
+  const outgoing = graphData.edges.filter(e => e.source === nodeId);
+  const incoming = graphData.edges.filter(e => e.target === nodeId);
+
+  panel.innerHTML = `
+    <div class="detail-title">${n.label}</div>
+    <div class="detail-type">${n.entity_type}</div>
+    <div class="detail-row"><span class="label">ID</span><span class="value">${n.id}</span></div>
+    <div class="detail-row"><span class="label">Type</span><span class="value">${n.entity_type}</span></div>
+    ${outgoing.length ? `<h2 style="font-size:12px;color:#7d8a99;margin-top:10px;text-transform:uppercase;letter-spacing:1px;">Outgoing (${outgoing.length})</h2>
+      <ul class="rel-list">${outgoing.map(e => {
+        const t = nodeMap[e.target];
+        return `<li><span class="rel-type">${e.relation}</span> → <span class="rel-target" data-node="${e.target}">${t ? t.label : e.target}</span>
+          <div class="rel-mem">${e.source_memory_id}</div></li>`;
+      }).join("")}</ul>` : ""}
+    ${incoming.length ? `<h2 style="font-size:12px;color:#7d8a99;margin-top:10px;text-transform:uppercase;letter-spacing:1px;">Incoming (${incoming.length})</h2>
+      <ul class="rel-list">${incoming.map(e => {
+        const s = nodeMap[e.source];
+        return `<li><span class="rel-target" data-node="${e.source}">${s ? s.label : e.source}</span> → <span class="rel-type">${e.relation}</span>
+          <div class="rel-mem">${e.source_memory_id}</div></li>`;
+      }).join("")}</ul>` : ""}
+  `;
+  panel.querySelectorAll(".rel-target").forEach(el => {
+    el.addEventListener("click", () => {
+      const nid = el.getAttribute("data-node");
+      showNodeDetail(nid);
+      renderGraph();
+    });
+  });
+  renderGraph();
+}
+
+function showEdgeDetail(edgeId) {
+  const e = graphData.edges.find(e => e.id === edgeId);
+  if (!e) return;
+  selectedEdge = e;
+  selectedNode = null;
+  const s = nodeMap[e.source], t = nodeMap[e.target];
+  const panel = $("detail-panel");
+  panel.innerHTML = `
+    <div class="detail-title">Relation</div>
+    <div class="detail-type">edge</div>
+    <div class="detail-row"><span class="label">Relation</span><span class="value">${e.relation}</span></div>
+    <div class="detail-row"><span class="label">Source</span><span class="value">${s ? s.label : e.source}</span></div>
+    <div class="detail-row"><span class="label">Target</span><span class="value">${t ? t.label : e.target}</span></div>
+    <div class="detail-row"><span class="label">Source Memory ID</span><span class="value">${e.source_memory_id}</span></div>
+  `;
+  renderGraph();
+}
+
+svg.addEventListener("mousedown", e => {
+  const nodeEl = e.target.closest("[data-node-id]");
+  const edgeEl = e.target.closest("[data-edge-id]");
+  if (nodeEl) {
+    dragging = { nodeId: nodeEl.getAttribute("data-node-id"), startX: e.clientX, startY: e.clientY };
+  } else if (edgeEl) {
+    showEdgeDetail(edgeEl.getAttribute("data-edge-id"));
+  } else {
+    panStart = { x: e.clientX - transform.x, y: e.clientY - transform.y };
+    selectedNode = null; selectedEdge = null;
+    $("detail-panel").innerHTML = '<div class="empty-detail">Knoten oder Kante auswählen</div>';
+    renderGraph();
+  }
+});
+
+svg.addEventListener("mousemove", e => {
+  if (dragging) {
+    const n = nodeMap[dragging.nodeId];
+    if (n) {
+      const rect = svg.getBoundingClientRect();
+      n.fx = (e.clientX - rect.left - transform.x) / transform.k;
+      n.fy = (e.clientY - rect.top - transform.y) / transform.k;
+      n.x = n.fx; n.y = n.fy;
+      renderGraph();
+    }
+  } else if (panStart) {
+    transform.x = e.clientX - panStart.x;
+    transform.y = e.clientY - panStart.y;
+    const g = document.getElementById("graph-content");
+    if (g) applyTransform(g);
+  }
+});
+
+svg.addEventListener("mouseup", () => {
+  if (dragging) {
+    const n = nodeMap[dragging.nodeId];
+    if (n) { showNodeDetail(dragging.nodeId); n.fx = null; n.fy = null; }
+    dragging = null;
+  }
+  panStart = null;
+});
+
+svg.addEventListener("wheel", e => {
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  const rect = svg.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  transform.x = mx - (mx - transform.x) * delta;
+  transform.y = my - (my - transform.y) * delta;
+  transform.k *= delta;
+  transform.k = Math.max(0.1, Math.min(5, transform.k));
+  const g = document.getElementById("graph-content");
+  if (g) applyTransform(g);
+}, { passive: false });
+
+$("search-btn").addEventListener("click", () => {
+  const query = $("search-input").value.trim().toLowerCase();
+  if (!query) return;
+  const found = graphData.nodes.find(n => n.label.toLowerCase().includes(query));
+  if (found) {
+    showNodeDetail(found.id);
+    const rect = svg.getBoundingClientRect();
+    transform.x = rect.width / 2 - found.x * transform.k;
+    transform.y = rect.height / 2 - found.y * transform.k;
+    const g = document.getElementById("graph-content");
+    if (g) applyTransform(g);
+  } else {
+    $("detail-panel").innerHTML = '<div class="empty-detail">Entity nicht gefunden</div>';
+  }
+});
+
+$("search-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") $("search-btn").click();
+});
+
+$("btn-refresh").addEventListener("click", loadGraph);
+$("btn-fit").addEventListener("click", () => {
+  transform = { x: 0, y: 0, k: 1 };
+  const g = document.getElementById("graph-content");
+  if (g) applyTransform(g);
+});
+
+// Legend
+(function buildLegend() {
+  const legend = $("legend");
+  Object.entries(TYPE_COLORS).forEach(([type, color]) => {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.innerHTML = `<div class="legend-dot" style="background:${color}"></div><span>${type}</span>`;
+    legend.appendChild(item);
+  });
+})();
+
+loadGraph();
+</script>
+</body>
+</html>

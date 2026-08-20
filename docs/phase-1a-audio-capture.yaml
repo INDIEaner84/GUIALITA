@@ -1,0 +1,137 @@
+phase: 1a
+name: audio-capture
+status: PASS
+baseline_marker: GUIALITA-PHASE-0.5-PASS
+date: "2026-08-18"
+
+mission:
+  - continuous microphone monitoring
+  - level/vad speech detection
+  - automatic wav recording
+  - silence detection end-of-utterance
+  - wav as end product (no STT, no TTS, no LFM)
+
+audio_environment:
+  server: pulseaudio
+  default_microphone: "ZOOM H2n USB (alsa_input.usb-ZOOM_Corporation_H2n_*.analog-stereo)"
+  other_inputs:
+    - "HDA Intel PCH ALC898 Analog"
+    - "HDA Intel PCH ALC898 Alt Analog"
+  sample_rate: 16000
+  channels: 1
+  sample_width_bits: 16
+  format: "PCM s16le"
+
+dependencies:
+  added:
+    - name: sounddevice
+      version: "0.5.6"
+      reason: "minimal PortAudio bindings, uses system libportaudio.so.2"
+  reused:
+    - numpy
+    - wave
+    - espeak-ng (test signal generation)
+    - PulseAudio null-sink (test harness)
+
+architecture:
+  capture_script: scripts/audio_capture.py
+  detector_interface: "LevelDetector.process(samples) -> {rms, peak, rms_db, peak_db}"
+  state_machine:
+    - IDLE
+    - MONITORING
+    - SPEECH_DETECTED
+    - RECORDING
+    - FINALIZING
+    - SAVED
+  pre_roll_ms: 400
+  output_dir: audio/inbox
+  failed_dir: audio/failed
+
+thresholds:
+  speech_threshold_db: -35.0
+  silence_threshold_db: -45.0
+  minimum_speech_ms: 400
+  silence_timeout_ms: 700
+  maximum_recording_ms: 30000
+  silent_file_rms_db: -50.0
+
+known_fix:
+  - "dB scale mismatch: float32 samples [-1,1] vs 16-bit full scale 32768 -> db_from_amplitude(value, full_scale=1.0)"
+
+wav_validation:
+  file_check: PASS
+  ffprobe_check: PASS
+  codec: pcm_s16le
+  sample_rate: 16000
+  channels: 1
+  bits_per_sample: 16
+
+test_results:
+  test_1_microphone_detected: PASS
+  test_2_capture_start_monitoring: PASS
+  test_3_silence_no_wav: PASS
+  test_4_short_speech_one_wav: PASS
+  test_5_long_sentence_one_wav: PASS
+  test_6_pause_inside_sentence_one_wav: PASS
+  test_7_background_noise: "PASS (manual, thresholds configurable)"
+  test_8_max_duration: PASS
+  test_9_wav_validation: PASS
+  test_10_multiple_recordings: PASS
+  automated_suite: tests/test_capture.py
+  automated_suite_result: "7/7 PASS"
+
+performance:
+  cpu_percent_monitoring: 1.9
+  ram_mb_monitoring_start: 50.8
+  ram_mb_monitoring_end: 52.7
+  gpu_usage: none
+  llm_loaded: false
+
+regression:
+  desktop_starter: PASS
+  start_sh: PASS
+  stop_sh: PASS
+  health: PASS
+  gpu_detection: PASS
+  text_chat: PASS
+  api_tests: "18/18 PASS"
+  ollama_http: PASS
+  ollama_pid_after_stop_unchanged: PASS
+
+privacy:
+  mic_activation: "explicit only (CLI start)"
+  cloud_transfer: none
+  audio_history: "wav files in audio/inbox (test artefacts of this phase)"
+
+known_issues:
+  - "debug log shows -300 dBFS values: numeric noise of empty pulse buffer, harmless"
+  - "nohup buffers stdout; use python -u for live debug"
+  - "automated tests need pulse null-sink + .asoundrc virtual mic"
+  - "sounddevice device index is system dependent (--list-devices)"
+
+known_risks:
+  - "thresholds validated for H2n/virtual env; adjust for noisy environments"
+  - "shared default mic (H2n) may delay stream open"
+  - "pulseaudio source suspend may delay first trigger after long silence"
+  - "no interaction with running backend observed"
+
+files_created:
+  - scripts/audio_capture.py
+  - tests/test_capture.py
+  - docs/PHASE_1A_AUDIO_CAPTURE.md
+  - docs/phase-1a-audio-capture.yaml
+  - audio/inbox/
+
+files_modified:
+  - "none (phase 0/0.5 files untouched)"
+
+rollback:
+  - "rm scripts/audio_capture.py tests/test_capture.py"
+  - "pip uninstall sounddevice"
+  - "optional: remove ~/.asoundrc, pactl unload-module module-null-sink"
+
+next_phases:
+  phases:
+    - "PHASE 1B: WAV -> LFM2.5-Audio -> Transkript"
+    - "PHASE 1C: Voice -> LFM -> TTS"
+  note: "start only after separate approval"

@@ -1,0 +1,27 @@
+# GUIALITA - Memory Foundation Konfiguration
+
+chat:
+  # Maximale Anzahl recent Messages, die dem LFM als Kontext übergeben werden.
+  recent_messages: 10
+
+  # Einfaches Zeichenbudget für den Kontext (Schutz gegen Overload).
+  max_context_chars: 12000
+
+memory:
+  enabled: true
+
+  embedding:
+    # Feature-Hashing Version (zukünsser Austausch)
+    version: 1
+    # Dimensionen des Feature-Hashing Vektors
+    dimensions: 512
+
+  retrieval:
+    # Maximale Anzahl abgerufener Memories
+    top_k: 4
+    # Mindest-Ähnlichkeit (Cosine Similarity)
+    min_score: 0.15
+    # Max. Zeichen für abgerufene Memories im LLM-Kontext
+    max_retrieval_chars: 6000
+    # Scope: global (alle Sessions) oder session (nur aktuelle)
+    scope: global

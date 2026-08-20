@@ -1,0 +1,40 @@
+# GUIALITA - Voice Activation Konfiguration
+
+voice_activation:
+  enabled: false
+
+  # Audio-Einstellungen
+  sample_rate: 16000
+  channels: 1
+  block_ms: 20
+
+  # Schwellenwerte (dBFS)
+  # start_threshold: wird automatisch aus Kalibrierung bestimmt
+  # end_threshold: niedriger als start_threshold (Hysterese)
+  start_threshold_db: -35.0
+  end_threshold_db: -45.0
+
+  # Timing (ms)
+  minimum_speech_ms: 400
+  silence_timeout_ms: 1000
+  maximum_recording_ms: 30000
+  pre_roll_ms: 200
+
+  # Kalibrierung
+  calibration_ms: 500
+  noise_margin_db: 1.0
+
+  # Self-TTS-Feedback-Schutz (ms)
+  post_tts_cooldown_ms: 1500
+
+  # Audio-Device (null = System-Default)
+  device: null
+
+  # STT/Chat/TTS Integration
+  stt_engine: whisper
+  chat_model: null
+  tts_enabled: true
+  tts_voice: us_female
+
+  # Debug
+  debug: false

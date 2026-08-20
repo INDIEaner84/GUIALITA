@@ -1,0 +1,20 @@
+{
+  "audio_id": "AUDIO-000001",
+  "source_filename": "audio_20260818_195713_001.wav",
+  "final_filename": "20260818_214137__namadomayus.wav",
+  "transcript": "Namadomayus.",
+  "model": "LFM2.5-Audio-1.5B",
+  "model_file": "LFM2.5-Audio-1.5B-Q4_0.gguf",
+  "runtime": "llama-liquid-audio-cli (LiquidAI, CPU)",
+  "duration_ms": 1620,
+  "sample_rate": 16000,
+  "channels": 1,
+  "sample_width": 16,
+  "timestamp": "2026-08-18T21:41:37",
+  "status": "SUCCESS",
+  "confidence": null,
+  "model_load_ms": 497,
+  "inference_ms": 1218,
+  "encode_ms": 743,
+  "total_processing_ms": 7113
+}

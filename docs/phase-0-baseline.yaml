@@ -1,0 +1,145 @@
+phase: 0
+status: PASS
+baseline_marker: GUIALITA-PHASE-0-PASS
+date: "2026-08-18"
+
+hardware:
+  host: ThinkPadT
+  os: Linux Mint 22.3
+  kernel: 6.14.0-37-generic
+  arch: x86_64
+  cpu: "Intel Core i7-3930K (6C/12T)"
+  ram_gb: 31
+  gpu: "NVIDIA GeForce GTX 1080 Ti"
+  gpu_vram_mib: 11264
+  gpu_driver: "535.288.01"
+  cuda: "12.2 (Toolkit 12.0)"
+  filesystem: exfat
+
+runtime:
+  llama_cpp_python: "0.3.35"
+  cuda: true
+  fastapi: "0.141.1"
+  uvicorn: "0.52.3"
+  pydantic: "2.13.4"
+  httpx: "0.28.1"
+  pyyaml: "6.0.3"
+  python: "3.12.3"
+  pip: "24.0"
+  venv: "/home/hz/.guialita-venv"
+  primary: llamacpp
+  secondary: ollama
+
+models:
+  - id: granite-3b
+    runtime: llamacpp
+    path: "/media/hz/_Ext_Seagat/AiEnvHz/LFM Granite Muscal/models/granite/3b/granite-4.1-3b-Q4_K_M.gguf"
+    format: GGUF
+    quantization: Q4_K_M
+    size_gb: 2.1
+    n_ctx: 4096
+    n_gpu_layers: 99
+    status: VERIFIED
+  - id: granite-8b
+    runtime: llamacpp
+    path: "/media/hz/_Ext_Seagat/AiEnvHz/LFM Granite Muscal/models/granite/8b/granite-4.1-8b-Q4_K_M.gguf"
+    format: GGUF
+    quantization: Q4_K_M
+    size_gb: 5.35
+    n_ctx: 4096
+    n_gpu_layers: 99
+    status: AVAILABLE
+  - id: lfm-agent-8b
+    runtime: llamacpp
+    path: "/media/hz/_Ext_Seagat/AiEnvHz/LFM Granite Muscal/models/lfm/agent/LFM2.5-8B-A1B-Q4_K_M.gguf"
+    format: GGUF
+    quantization: Q4_K_M
+    size_gb: 5.16
+    n_ctx: 4096
+    n_gpu_layers: 99
+    status: AVAILABLE
+  - id: lfm-vision-3b
+    runtime: llamacpp
+    path: "/media/hz/_Ext_Seagat/GUIALITA/models/lfm-vision-3b/LFM2.5-VL-3B-Q4_K_M.gguf"
+    format: GGUF
+    quantization: Q4_K_M
+    size_gb: 1.67
+    n_ctx: 4096
+    n_gpu_layers: 99
+    status: AVAILABLE
+  - id: lfm-vision-1.6b
+    runtime: llamacpp
+    path: "/media/hz/_Ext_Seagat/GUIALITA/models/lfm-vision-1.6b/LFM2.5-VL-1.6B-Q4_K_M.gguf"
+    format: GGUF
+    quantization: Q4_K_M
+    size_gb: 0.73
+    n_ctx: 4096
+    n_gpu_layers: 99
+    status: TESTED
+  - id: lfm-audio-1.5b
+    runtime: llamacpp
+    path: "/media/hz/_Ext_Seagat/GUIALITA/models/lfm-audio-1.5b/LFM2.5-Audio-1.5B-Q4_0.gguf"
+    format: GGUF
+    quantization: Q4_0
+    size_gb: 0.7
+    n_ctx: 4096
+    n_gpu_layers: 99
+    status: TESTED
+
+backend:
+  status: PASS
+  host: 0.0.0.0
+  port: 8080
+  endpoints: ["/health", "/models", "/chat", "/"]
+
+ollama:
+  status: AVAILABLE
+  role: SHARED
+  version: "0.30.10"
+  port: 11434
+  model_count: 17
+
+latency:
+  cold_start_ms: 1176
+  first_start_range_s: [50, 66]
+  warm_min_ms: 29
+  warm_max_ms: 48
+  real_inference_ms: 114
+  vision_first_load_ms: 66614
+  audio_first_load_ms: 57724
+
+tests:
+  health: PASS
+  model_availability: PASS
+  model_loading: PASS
+  chat: PASS
+  real_inference: PASS
+  gpu_inference: PASS
+  error_handling: PASS
+  ollama_connectivity: PASS
+  e2e: PASS
+  total: "9/9"
+
+error_baseline:
+  invalid_endpoint: "HTTP 404"
+  empty_message: "HTTP 400 (error:empty_message)"
+  unknown_model: "HTTP 404 (error:unknown_model)"
+  invalid_json: "HTTP 422"
+  model_load_failure: "HTTP 500 (structured diagnostic, CUDA->CPU fallback)"
+
+desktop_launcher:
+  status: PASS
+  path: "/home/hz/.local/share/applications/GUIALITA.desktop"
+  categories: "Utility;Development;ArtificialIntelligence"
+  start_script: "/media/hz/_Ext_Seagat/GUIALITA/scripts/start.sh"
+
+shutdown:
+  status: PASS
+  stops_only_guialita: true
+  ollama_untouched: true
+
+git:
+  repository: false
+  note: "Kein Git-Repository - Zustand wird über baseline-Dokumente fixiert"
+
+integrity_marker: GUIALITA-PHASE-0-PASS

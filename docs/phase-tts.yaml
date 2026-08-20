@@ -1,0 +1,68 @@
+phase: "TTS-V1"
+status: "PASS"
+baseline_before: "GUIALITA-GRAPH-VISUALIZATION-V1-PASS"
+baseline_after: "GUIALITA-TTS-V1-PASS"
+date: "2026-08-19"
+
+summary: >
+  LFM2.5-Audio TTS als minimaler Voice-Output-Kanal.
+  Text → ChatService → LFM2.5-Audio TTS → WAV → Browser Playback.
+
+model:
+  name: "LFM2.5-Audio-1.5B"
+  format: "GGUF Q4_0"
+  size_gb: 1.1
+  runtime: "llama-liquid-audio-cli"
+  sample_rate: 24000
+  channels: 1
+
+performance:
+  cold_latency_ms: 5400
+  warm_latency_ms: 4200
+  wav_duration_s: "2-4"
+
+voices:
+  - us_female
+  - us_male
+  - uk_female
+  - uk_male
+
+changes:
+  - file: "backend/audio/__init__.py"
+    type: "CREATE"
+  - file: "backend/audio/tts.py"
+    type: "CREATE"
+    description: "TTS Service wrapping llama-liquid-audio-cli"
+  - file: "backend/main.py"
+    type: "MODIFY"
+    description: "+import, +/audio/tts/status, +/audio/tts endpoint"
+  - file: "frontend/index.html"
+    type: "MODIFY"
+    description: "+TTS button, +TTS handler, +TTS CSS"
+  - file: "tests/test_tts.py"
+    type: "CREATE"
+    description: "16 tests (T01-T16)"
+
+tests:
+  total: 16
+  tts: 11
+  regression: 5
+  status: "PASS"
+
+real_e2e:
+  tts_bytes: 313004
+  tts_latency_s: 5.0
+  tts_duration_s: 3.26
+  wav_valid: true
+  sample_rate: 24000
+  channels: 1
+  chat_pass: true
+  session_pass: true
+  memory_entities: 48
+  memory_relations: 561
+  graph_nodes: 48
+  graph_edges: 250
+  frontend_tts_btn: true
+  ollama_pid_before: 2492667
+  ollama_pid_after: 2492667
+  ollama_unchanged: true

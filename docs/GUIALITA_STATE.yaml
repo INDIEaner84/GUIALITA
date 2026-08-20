@@ -1,0 +1,169 @@
+# GUIALITA — Canonical Project State (machine-readable)
+# Aktualisiert: 2026-08-18, nach PHASE 1B PASS
+# Quellen: docs/PHASE_1A_AUDIO_CAPTURE.md, docs/phase-1a-audio-capture.yaml,
+#          docs/PHASE_1B_WAV_LFM_AUDIO.md, docs/phase-1b-wav-lfm-audio.yaml
+
+project:
+  name: GUIALITA
+  status: PASS
+  baseline: GUIALITA-VOICE-ACTIVATION-V1-PASS
+
+phases:
+  phase_0:
+    status: PASS
+  phase_0_5:
+    status: PASS
+  phase_1a:
+    status: PASS
+  phase_1b:
+    status: PASS
+    authorization: COMPLETE
+  phase_1c:
+    status: NOT_STARTED
+    authorization: REQUIRED
+    frozen: true
+  memory_session:
+    status: PASS
+    authorization: COMPLETE
+  memory_retrieval:
+    status: PASS
+    authorization: COMPLETE
+  memory_graph:
+    status: PASS
+    authorization: COMPLETE
+  graph_visualization:
+    status: PASS
+    authorization: COMPLETE
+  tts:
+    status: PASS
+    authorization: COMPLETE
+  voice_activation:
+    status: PASS
+    authorization: COMPLETE
+
+current_phase:
+  completed: VOICE_ACTIVATION_V1
+  next_authorized_phase: NONE
+  next_candidate: STREAMING oder VAD_UPGRADE
+  hard_stop: true
+
+audio_capture:
+  microphone: "ZOOM H2n USB default"
+  sample_rate_hz: 16000
+  channels: 1
+  format: pcm_s16le
+  vad: RMS_LEVEL_THRESHOLD
+  speech_threshold_dbfs: -35
+  silence_threshold_dbfs: -45
+  min_speech_ms: 400
+  silence_timeout_ms: 700
+  max_recording_ms: 30000
+  pre_roll_ms: 400
+
+lfm_audio:
+  model: "LFM2.5-Audio-1.5B (Liquid AI)"
+  architecture: lfm2
+  runtime: llama-liquid-audio-cli (official runner, CPU-only)
+  runtime_location: runtime/liquid-audio/
+  llama_cpp_python_audio_api: NONE
+  real_audio_inference: PASS
+  transcription: PASS
+  confidence: null
+  processor: scripts/process_audio.py
+
+validation:
+  wav_validation: PASS
+  multiple_recordings: PASS
+  recordings_validated: 5
+  api_regression: PASS
+  gpu_regression: PASS
+  chat_regression: PASS
+  desktop_regression: PASS
+  phase_1b_tests: "13/13 PASS"
+
+resources:
+  cpu_monitor_percent: 1.9
+  ram_mb_range: "50.8-52.7"
+  vram_mib_before: 4708
+  vram_mib_during: 4708
+  vram_mib_after: 4708
+
+phase_1a_artifacts:
+  - scripts/audio_capture.py
+  - tests/test_capture.py
+  - docs/PHASE_1A_AUDIO_CAPTURE.md
+  - docs/phase-1a-audio-capture.yaml
+  - audio/inbox/
+
+phase_1b_artifacts:
+  - scripts/process_audio.py
+  - tests/test_process_audio.py
+  - runtime/liquid-audio/
+  - docs/PHASE_1B_WAV_LFM_AUDIO.md
+  - docs/phase-1b-wav-lfm-audio.yaml
+  - audio/processed/
+
+memory_session_artifacts:
+  - backend/memory/schema.py
+  - backend/memory/store.py
+  - backend/chat_service.py
+  - config/memory.yaml
+  - tests/test_memory.py
+  - docs/PHASE_MEMORY_SESSION_RESULT.md
+  - docs/phase-memory-session.yaml
+  - data/guialita.db (runtime)
+
+memory_retrieval_artifacts:
+  - backend/memory/embed.py
+  - backend/memory/retrieval.py
+  - tests/test_memory_retrieval.py
+  - docs/PHASE_MEMORY_RETRIEVAL_RESULT.md
+  - docs/phase-memory-retrieval.yaml
+
+memory_graph_artifacts:
+  - backend/memory/extractor.py
+  - tests/test_memory_graph.py
+  - docs/PHASE_MEMORY_GRAPH_FOUNDATION_RESULT.md
+  - docs/phase-memory-graph-foundation.yaml
+
+graph_visualization_artifacts:
+  - frontend/graph.html
+  - tests/test_graph_visualization.py
+  - docs/PHASE_GRAPH_VISUALIZATION_RESULT.md
+  - docs/phase-graph-visualization.yaml
+
+tts_artifacts:
+  - backend/audio/tts.py
+  - tests/test_tts.py
+  - docs/PHASE_TTS_RESULT.md
+  - docs/phase-tts.yaml
+
+voice_activation_artifacts:
+  - config/voice.yaml
+  - backend/audio/voice_activation.py
+  - tests/test_voice_activation.py
+  - docs/PHASE_VOICE_ACTIVATION_RESULT.md
+  - docs/phase-voice-activation.yaml
+
+known_issues:
+  - "empty pulse buffers may display -300 dBFS (numeric noise, harmless)"
+  - "nohup stdout buffering affects live debug visibility (use python -u)"
+  - "audio device index is system dependent (use --list-devices)"
+  - "LFM2.5-Audio ASR is EN-focused; German espeak input transcribes coarsely"
+  - "llama-liquid-audio-cli is WIP (llama.cpp PR #18641), CPU-only"
+
+known_risks:
+  - "thresholds may require adjustment in noisy environments"
+  - "PulseAudio source suspension may delay first trigger"
+  - "shared default microphone may delay stream opening"
+  - "runner builds may change on HuggingFace (WIP status)"
+  - "disk nearly full (32 GB free); no further large downloads without approval"
+
+prohibitions:
+  phase_1c_auto_start: true
+  modify_phase_1a_without_authorization: true
+  modify_phase_1b_without_authorization: true
+
+last_verified_result:
+  phase: VOICE_ACTIVATION_V1
+  status: PASS

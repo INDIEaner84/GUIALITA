@@ -1,0 +1,97 @@
+# GUIALITA Phase: Voice Forensics V1
+phase: voice_forensics_v1
+status: COMPLETE
+baseline: GUIALITA-VOICE-ACTIVATION-V1-PASS
+date: 2026-08-19
+
+# Purpose
+Diagnose root cause of high latency and context issues in voice pipeline.
+
+# Findings Summary
+
+## Latency
+stt_ms: ~14000
+llm_cold_ms: ~197000
+llm_warm_ms: ~23000
+tts_cold_ms: ~3400
+tts_warm_ms: ~3100
+append_message_ms: ~1500
+index_messages_ms: ~3000
+total_warm_turn_ms: ~48000
+
+## GPU
+util_percent: 8-9
+vram_before_mib: 1681
+vram_after_mib: 1738
+model_on_gpu: FALSE
+observation: granite-3b runs on CPU despite n_gpu_layers=99
+
+## Model Identity
+chat_model: granite-4.1-3b-Q4_K_M
+chat_runtime: llama-cpp-python
+chat_path: AiEnvHz/LFM Granite Muscal/models/granite/3b/
+stt_model: ggml-base.bin
+stt_runtime: whisper.cpp
+tts_model: LFM2.5-Audio-1.5B-Q4_0
+tts_runtime: llama-liquid-audio-cli
+
+## Session Continuity
+session_id_preserved: TRUE
+history_used_turn2: 7
+memory_retrieved: TRUE
+graph_relations_created: TRUE
+
+## Context Issue
+model_received_context: TRUE
+model_response_correct: FALSE
+root_cause: model behavior (German Granite not reliably using history)
+
+## TTS First Attempt
+failure_reproduced: FALSE
+status: TRANSIENT
+
+## Self-Feedback
+cooldown_ms: 1500
+protection_code: PRESENT
+audio_playback_test: INCOMPLETE
+
+## Path Analysis
+model_duplication: FALSE
+path_conflicts: NONE
+voice_yaml: config/voice.yaml (new)
+
+# Classification
+voice_activation: PASS
+continuous_turn_taking: PASS
+streaming_stt: NOT_IMPLEMENTED
+streaming_tts: NOT_IMPLEMENTED
+full_duplex: NOT_IMPLEMENTED
+barge_in: NOT_IMPLEMENTED
+
+# Performance Classification
+stt: BOTTLENECK
+llm: CRITICAL_BOTTLENECK
+memory_append: ACCEPTABLE
+graph_indexing: ACCEPTABLE
+memory_retrieval: GOOD
+context_build: GOOD
+tts: ACCEPTABLE
+total_turn: CRITICAL_BOTTLENECK
+
+# Root Cause
+primary: LLM on CPU (GPU not utilized despite config)
+secondary: STT CPU-bound
+context: Model behavior issue (not pipeline bug)
+tts_first_attempt: Transient (not reproduced)
+
+# Decision
+A: NO_ACTION_REQUIRED
+B: MINIMAL_FIX_REQUIRED
+C: PERFORMANCE_OPTIMIZATION_REQUIRED
+D: ARCHITECTURE_DECISION_REQUIRED
+
+decision: C
+reason: >
+  Pipeline works correctly but latency is unacceptable.
+  Primary bottleneck is LLM running on CPU.
+  Investigate GPU loading failure.

@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GUIALITA - Local LFM Assistant</title>
+<style>
+  :root {
+    --bg: #101418;
+    --panel: #1a2027;
+    --border: #2a313a;
+    --text: #dce3ea;
+    --dim: #7d8a99;
+    --green: #3ddc84;
+    --yellow: #f5c542;
+    --red: #ff5f56;
+    --blue: #58a6ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "DejaVu Sans", system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; justify-content: center; padding: 24px 12px; min-height: 100vh;
+  }
+  .app { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 14px; }
+  h1 { font-size: 20px; letter-spacing: 1px; color: var(--dim); text-align: center; }
+  .status-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+  }
+  .status-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+  .status-item .label { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; background: var(--dim); }
+  .dot.online, .dot.ready, .dot.success { background: var(--green); }
+  .dot.working { background: var(--yellow); animation: pulse 0.8s infinite; }
+  .dot.error, .dot.offline { background: var(--red); }
+  .dot.initializing { background: var(--blue); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  #model-name { font-family: monospace; font-size: 13px; }
+  .chat-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    display: flex; flex-direction: column; height: 400px; overflow-y: auto; padding: 14px; gap: 10px;
+  }
+  .msg { max-width: 85%; padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { align-self: flex-end; background: #243449; border-bottom-right-radius: 2px; }
+  .msg.lfm { align-self: flex-start; background: #232c35; border-bottom-left-radius: 2px; }
+  .msg.lfm .meta { color: var(--dim); font-size: 11px; margin-bottom: 4px; }
+  .input-row { display: flex; gap: 8px; }
+  #message { flex: 1; background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 12px; font-size: 14px; resize: none; }
+  #message:focus { outline: none; border-color: var(--blue); }
+  #send { background: var(--blue); color: #08131f; border: none; border-radius: 8px;
+    padding: 0 24px; font-size: 14px; font-weight: bold; cursor: pointer; }
+  #send:hover { filter: brightness(1.15); }
+  #send:disabled { opacity: 0.5; cursor: not-allowed; }
+  #error-box { background: #2b1517; border: 1px solid #4a2326; color: #ffb4b0;
+    border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; display: none; white-space: pre-wrap; }
+  #footer { color: var(--dim); font-size: 11px; text-align: center; }
+  #model-select { background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  .audio-row { display: flex; align-items: center; gap: 10px; }
+  #mic-btn { background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 10px 18px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  #mic-btn:hover { border-color: var(--blue); }
+  #mic-btn.recording { background: #3a1517; border-color: var(--red); color: #ffb4b0; animation: pulse 1.2s infinite; }
+  #mic-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #mic-state { color: var(--dim); font-size: 13px; min-height: 18px; }
+  #mic-timer { color: var(--dim); font-family: monospace; font-size: 13px; }
+  .transcript-box {
+    background: #1c2520; border: 1px solid #2e4a3a; border-radius: 8px; padding: 12px;
+    display: none; font-size: 14px; line-height: 1.5;
+  }
+  .transcript-box .t-label { color: #6fbf8a; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .transcript-box .t-text { color: var(--text); white-space: pre-wrap; }
+  .transcript-box .t-meta { color: var(--dim); font-size: 11px; margin-top: 6px; }
+  #tts-row { display: none; align-items: center; gap: 10px; }
+  #tts-btn { background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+  #tts-btn:hover { border-color: var(--blue); }
+  #tts-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #tts-state { color: var(--dim); font-size: 12px; }
+  .voice-row { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+  #va-btn { background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; }
+  #va-btn:hover { border-color: var(--blue); }
+  #va-btn.active { background: #1a2a1a; border-color: var(--green); color: var(--green); }
+  #va-state { color: var(--dim); font-size: 13px; font-family: monospace; min-width: 120px; }
+  #va-state.IDLE { color: var(--dim); }
+  #va-state.CALIBRATING { color: var(--yellow); animation: pulse 0.8s infinite; }
+  #va-state.READY { color: var(--green); }
+  #va-state.RECORDING { color: var(--red); animation: pulse 0.8s infinite; }
+  #va-state.SILENCE { color: var(--yellow); }
+  #va-state.PROCESSING { color: var(--blue); animation: pulse 0.8s infinite; }
+  #va-state.SPEAKING { color: var(--blue); }
+  #va-state.ERROR { color: var(--red); }
+  #va-turns { color: var(--dim); font-size: 11px; }
+  #va-transcript { color: var(--dim); font-size: 12px; font-style: italic; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>LOCAL LFM ASSISTANT</h1>
+
+  <div class="status-grid">
+    <div class="status-item"><span class="label">Model</span><span id="model-name">-</span></div>
+    <div class="status-item"><span class="label">Session</span><span id="session-id" style="font-family:monospace;font-size:12px;">-</span></div>
+    <div class="status-item"><span class="label">Modell wählen</span>
+      <select id="model-select"><option value="">laden…</option></select>
+    </div>
+    <div class="status-item"><span class="label">API</span><span><span class="dot initializing" id="dot-api"></span><span id="api-status">INITIALIZING</span></span></div>
+    <div class="status-item"><span class="label">MODEL</span><span><span class="dot initializing" id="dot-model"></span><span id="model-status">INITIALIZING</span></span></div>
+    <div class="status-item"><span class="label">RUNTIME</span><span id="runtime-status">-</span></div>
+    <div class="status-item"><span class="label">LATENCY</span><span id="latency">- ms</span></div>
+    <div class="status-item"><span class="label">STATUS</span><span><span class="dot initializing" id="dot-status"></span><span id="work-status">INITIALIZING</span></span></div>
+    <div class="status-item"><span class="label">OLLAMA</span><span id="ollama-status">-</span></div>
+  </div>
+
+  <div class="voice-row">
+    <button id="va-btn" disabled>🎤 Voice Activation</button>
+    <span id="va-state" class="IDLE">IDLE</span>
+    <span id="va-turns"></span>
+    <span id="va-transcript"></span>
+  </div>
+
+  <div id="error-box"></div>
+
+  <div class="audio-row">
+    <button id="mic-btn" disabled>🎙️ Sprechen</button>
+    <span id="mic-state">prüfe Audio…</span>
+    <span id="mic-timer"></span>
+  </div>
+  <div class="transcript-box" id="transcript-box">
+    <div class="t-label">📝 ERKANNT</div>
+    <div class="t-text" id="transcript-text"></div>
+    <div class="t-meta" id="transcript-meta"></div>
+  </div>
+
+  <div class="chat-box" id="chat-box">
+    <div class="msg lfm"><div class="meta">LFM · System</div>Lokales LFM-Modell bereit. Stelle eine Frage.</div>
+  </div>
+
+  <div class="audio-row" id="tts-row" style="display:none;">
+    <button id="tts-btn">🔊 Vorlesen</button>
+    <span id="tts-state"></span>
+  </div>
+
+  <div class="input-row">
+    <textarea id="message" rows="2" placeholder="Nachricht eingeben…"></textarea>
+    <button id="send">SEND</button>
+  </div>
+
+  <div id="footer">GUIALITA Phase 0 · Browser → Local LFM → Browser · <a href="/graph" style="color:var(--blue);text-decoration:none;">Graph</a></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const chatBox = $("chat-box");
+const sendBtn = $("send");
+const input = $("message");
+const modelSelect = $("model-select");
+
+let busy = false;
+let currentModel = "";
+let sessionId = "";
+
+function setDot(dotId, state) {
+  const el = $(dotId);
+  el.className = "dot";
+  el.classList.add(state);
+}
+function setText(id, txt) { $(id).textContent = txt; }
+
+async function ensureSession() {
+  if (sessionId) return sessionId;
+  try {
+    const r = await fetch("/sessions", { method: "POST" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    sessionId = d.session_id;
+    setText("session-id", sessionId);
+  } catch (e) {
+    setText("session-id", "-");
+  }
+  return sessionId;
+}
+
+function setApiState(state) {
+  setDot("dot-api", state.toLowerCase());
+  setText("api-status", state.toUpperCase());
+}
+function setModelState(state) {
+  setDot("dot-model", state.toLowerCase());
+  setText("model-status", state.toUpperCase());
+}
+function setWorkState(state) {
+  setDot("dot-status", state.toLowerCase());
+  setText("work-status", state.toUpperCase());
+}
+function showError(title, lines) {
+  const box = $("error-box");
+  box.style.display = "block";
+  box.textContent = "=== FEHLERDIAGNOSE ===\n" + title + "\n" + lines.map(l => l.join(": ")).join("\n");
+}
+
+async function loadHealth() {
+  try {
+    const r = await fetch("/health");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const h = await r.json();
+    setApiState("online");
+    setText("latency", h.latency_ms + " ms");
+
+    const primary = h.primary_runtime || {};
+    const secondary = h.secondary_runtime || {};
+    setText("runtime-status", primary.runtime + " · " + (primary.gpu ? "GPU" : "CPU"));
+    setText("ollama-status", (secondary.status === "online" ? "online" : "offline") +
+      (secondary.status === "online" ? " · " + (secondary.models || []).length + " Modelle" : ""));
+
+    const models = (h.models || []).filter(m => m.available);
+    const all = h.models || [];
+    if (modelSelect.options.length <= 1) {
+      all.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = m.name + (m.available ? "" : " (fehlt)");
+        modelSelect.appendChild(opt);
+      });
+    }
+    currentModel = models.length ? models[0].id : (all[0] ? all[0].id : "");
+    if (currentModel) modelSelect.value = currentModel;
+    setText("model-name", currentModel || "-");
+
+    const active = all.find(m => m.id === currentModel);
+    setModelState(active && active.available ? "online" : "offline");
+    setWorkState("ready");
+    showError("", []);
+    $("error-box").style.display = "none";
+  } catch (e) {
+    setApiState("offline");
+    setModelState("offline");
+    setWorkState("error");
+    showError("API nicht erreichbar", [
+      ["STATUS", "OFFLINE"],
+      ["TARGET", "localhost:8080"],
+      ["ERROR", e.message],
+      ["ACTION", "Starte GUIALITA über das Startmenü (Backend läuft nicht)"]
+    ]);
+  }
+}
+
+async function sendChat() {
+  const text = input.value.trim();
+  if (!text || busy) return;
+  busy = true;
+  sendBtn.disabled = true;
+  setWorkState("working");
+
+  const userMsg = document.createElement("div");
+  userMsg.className = "msg user";
+  userMsg.textContent = text;
+  chatBox.appendChild(userMsg);
+  input.value = "";
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  const t0 = performance.now();
+  try {
+    await ensureSession();
+    const r = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, model: modelSelect.value || currentModel, session_id: sessionId })
+    });
+    const data = await r.json();
+    const latency = Math.round(performance.now() - t0);
+
+    if (data.status === "error" || !r.ok) {
+      if (data.error === "unknown_session") { sessionId = ""; await ensureSession(); }
+      throw new Error(JSON.stringify(data));
+    }
+
+    sessionId = data.session_id;
+    setText("session-id", sessionId);
+
+    const lfmMsg = document.createElement("div");
+    lfmMsg.className = "msg lfm";
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = "LFM · " + data.model + " · " + data.latency_ms + " ms";
+    const body = document.createElement("div");
+    body.textContent = data.response;
+    lfmMsg.appendChild(meta);
+    lfmMsg.appendChild(body);
+
+    const ttsRow = document.getElementById("tts-row");
+    const ttsBtn = document.getElementById("tts-btn");
+    const ttsState = document.getElementById("tts-state");
+    ttsRow.style.display = "flex";
+    ttsBtn.disabled = false;
+    ttsState.textContent = "";
+    ttsBtn.onclick = async () => {
+      ttsBtn.disabled = true;
+      ttsState.textContent = "Generiere Audio…";
+      try {
+        const resp = await fetch("/audio/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: data.response }),
+        });
+        if (!resp.ok) throw new Error("TTS HTTP " + resp.status);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.onended = () => { URL.revokeObjectURL(url); ttsBtn.disabled = false; ttsState.textContent = ""; };
+        audio.onerror = () => { URL.revokeObjectURL(url); ttsBtn.disabled = false; ttsState.textContent = "Audio-Fehler"; };
+        ttsState.textContent = resp.headers.get("X-TTS-Duration-S") + "s · " + resp.headers.get("X-TTS-Latency-Ms") + "ms";
+        audio.play();
+      } catch (e) {
+        ttsBtn.disabled = false;
+        ttsState.textContent = "TTS-Fehler: " + e.message;
+      }
+    };
+
+    chatBox.appendChild(lfmMsg);
+
+    setText("latency", latency + " ms");
+    setWorkState("success");
+    setModelState("online");
+    setApiState("online");
+    $("error-box").style.display = "none";
+  } catch (e) {
+    setWorkState("error");
+    let err = {};
+    try { err = JSON.parse(e.message); } catch { err = { error: e.message }; }
+    showError("Chat-Anfrage fehlgeschlagen", [
+      ["MODEL", err.model || modelSelect.value || currentModel],
+      ["STATUS", "ERROR"],
+      ["TARGET", "localhost:11434 / localhost:8080"],
+      ["ERROR", err.error || e.message],
+      ["DETAILS", err.details || "-"],
+      ["RUNTIME", err.runtime || "-"],
+      ["ACTION", "Prüfe Log unter /media/hz/_Ext_Seagat/GUIALITA/scripts/logs/backend.log"]
+    ]);
+  } finally {
+    busy = false;
+    sendBtn.disabled = false;
+    setTimeout(() => { if ($("work-status").textContent === "SUCCESS") setWorkState("ready"); }, 1500);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+}
+
+sendBtn.addEventListener("click", sendChat);
+input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+modelSelect.addEventListener("change", () => {
+  currentModel = modelSelect.value;
+  const model = currentModel;
+  setText("model-name", model || "-");
+  setModelState(model ? "online" : "offline");
+});
+
+loadHealth();
+setInterval(loadHealth, 15000);
+ensureSession();
+
+/* ============ PHASE 1: MIKROFON / AUDIO ============ */
+
+const micBtn = $("mic-btn");
+const micState = $("mic-state");
+const micTimer = $("mic-timer");
+const transcriptBox = $("transcript-box");
+const transcriptText = $("transcript-text");
+const transcriptMeta = $("transcript-meta");
+
+let mediaRecorder = null;
+let audioChunks = [];
+let recordStart = 0;
+let recTimerInterval = null;
+let audioCtx = null;
+let audioStream = null;
+let audioPcm = [];
+
+function setMicState(txt) { micState.textContent = txt; }
+
+function showTranscript(text, meta) {
+  transcriptText.textContent = text;
+  transcriptMeta.textContent = meta || "";
+  transcriptBox.style.display = "block";
+  transcriptBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function clearTranscript() {
+  transcriptBox.style.display = "none";
+  transcriptText.textContent = "";
+  transcriptMeta.textContent = "";
+}
+
+function audioSupported() {
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+
+async function initAudio() {
+  if (!audioSupported()) {
+    setMicState("❌ Mikrofon wird vom Browser nicht unterstützt");
+    return;
+  }
+  try {
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micBtn.disabled = false;
+    setMicState("🎙️ Bereit");
+    audioStream.getTracks().forEach(t => t.stop());
+    audioStream = null;
+  } catch (e) {
+    micBtn.disabled = true;
+    if (e.name === "NotAllowedError") setMicState("❌ Mikrofonzugriff verweigert (Berechtigung im Browser erteilen)");
+    else if (e.name === "NotFoundError") setMicState("❌ Kein Mikrofon gefunden");
+    else if (e.name === "NotReadableError") setMicState("❌ Mikrofon wird von anderem Programm verwendet");
+    else setMicState("❌ Mikrofonfehler: " + e.name);
+  }
+}
+
+function encodeWav(samples, sampleRate) {
+  // Float32 [-1,1] -> 16-bit PCM WAV (mono)
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+async function startRecording() {
+  clearTranscript();
+  setWorkState("working");
+  setMicState("🔴 Aufnahme läuft …");
+
+  try {
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaStreamSource(audioStream);
+
+    // PCM 16 kHz mono sammeln
+    audioPcm = [];
+    const targetRate = 16000;
+    const recorder = audioCtx.createScriptProcessor(4096, 1, 1);
+    source.connect(recorder);
+    recorder.connect(audioCtx.destination);
+    recorder.onaudioprocess = e => {
+      const data = e.inputBuffer.getChannelData(0);
+      // Resample auf 16 kHz
+      const ratio = audioCtx.sampleRate / targetRate;
+      let idx = 0;
+      while (idx < data.length) {
+        const p = Math.floor(idx * ratio);
+        if (p < data.length) audioPcm.push(data[p]);
+        idx += ratio;
+      }
+    };
+
+    mediaRecorder = { stop: null }; // Platzhalter, wir nutzen PCM direkt
+    recordStart = Date.now();
+    micBtn.classList.add("recording");
+    micBtn.textContent = "⏹️ Stoppen";
+    micBtn.onclick = stopRecording;
+
+    recTimerInterval = setInterval(() => {
+      const s = Math.round((Date.now() - recordStart) / 1000);
+      micTimer.textContent = s + " s";
+    }, 250);
+
+    // Hintergrund-Recorder-Referenz speichern
+    mediaRecorder = { audioCtx, source, recorder, stream: audioStream };
+  } catch (e) {
+    setWorkState("error");
+    if (e.name === "NotAllowedError") setMicState("❌ Mikrofonzugriff verweigert");
+    else if (e.name === "NotFoundError") setMicState("❌ Kein Mikrofon vorhanden");
+    else setMicState("❌ Mikrofonfehler: " + (e.name || e.message));
+  }
+}
+
+async function stopRecording() {
+  micBtn.classList.remove("recording");
+  micBtn.textContent = "🎙️ Sprechen";
+  micBtn.onclick = startRecording;
+  clearInterval(recTimerInterval);
+  recTimerInterval = null;
+  micTimer.textContent = "";
+
+  const recordingMs = Date.now() - recordStart;
+  const recordingS = Math.round(recordingMs / 100) / 10;
+
+  try {
+    if (mediaRecorder && mediaRecorder.audioCtx) {
+      mediaRecorder.audioCtx.close();
+      mediaRecorder.recorder.disconnect();
+      mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    }
+  } catch (e) { /* ignore */ }
+  mediaRecorder = null;
+
+  if (audioPcm.length < 1600) {
+    setMicState("❌ Aufnahme zu kurz (unter ~0,1 s) - nochmal versuchen");
+    setWorkState("ready");
+    audioPcm = [];
+    return;
+  }
+
+  const wavBlob = encodeWav(audioPcm, 16000);
+  audioPcm = [];
+  setMicState("🧠 Sprache wird verstanden …");
+  await sendAudioToBackend(wavBlob, recordingS);
+}
+
+async function sendAudioToBackend(wavBlob, recordingS) {
+  setMicState("📝 Transkribiere …");
+  const t0 = performance.now();
+  try {
+    const r = await fetch("/audio/transcribe", {
+      method: "POST",
+      headers: { "Content-Type": "audio/wav" },
+      body: wavBlob
+    });
+    const data = await r.json();
+    const totalMs = Math.round(performance.now() - t0);
+
+    if (data.status !== "success") {
+      throw new Error(JSON.stringify(data));
+    }
+
+    const transcript = data.transcript;
+    showTranscript(
+      "„" + transcript + "“",
+      "STT " + data.engine + " · " + data.model + " · " + data.transcription_ms + " ms · Aufnahme " + recordingS + " s"
+    );
+    setMicState("⚙️ LFM verarbeitet …");
+    setWorkState("working");
+
+    // Transcript an bestehende Chat-Pipeline übergeben
+    await sendTranscriptToChat(transcript, totalMs, data.transcription_ms, recordingS);
+  } catch (e) {
+    let err = {};
+    try { err = JSON.parse(e.message); } catch { err = { error: e.message }; }
+    setMicState("❌ Fehler bei der Transkription");
+    setWorkState("error");
+    showError("Audio-Transkription fehlgeschlagen", [
+      ["STATUS", "ERROR"],
+      ["ERROR", err.error || e.message],
+      ["DETAILS", err.details || "-"],
+      ["ACTION", "Prüfe: whisper-cli + Modell in config/models.yaml (stt)"]
+    ]);
+  }
+}
+
+async function sendTranscriptToChat(transcript, totalMs, sttMs, recordingS) {
+  // Nutzt die bestehende Chat-Pipeline (/chat) mit dem erkannten Text
+  const userMsg = document.createElement("div");
+  userMsg.className = "msg user";
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = "🎙️ AUDIO";
+  userMsg.appendChild(meta);
+  const body = document.createElement("div");
+  body.textContent = transcript;
+  userMsg.appendChild(body);
+  chatBox.appendChild(userMsg);
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  try {
+    const r = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: transcript, model: modelSelect.value || currentModel, session_id: sessionId })
+    });
+    const data = await r.json();
+    if (data.status === "error" || !r.ok) throw new Error(JSON.stringify(data));
+    sessionId = data.session_id;
+    setText("session-id", sessionId);
+
+    const lfmMsg = document.createElement("div");
+    lfmMsg.className = "msg lfm";
+    const meta2 = document.createElement("div");
+    meta2.className = "meta";
+    meta2.textContent = "LFM · " + data.model + " · " + data.latency_ms + " ms (STT " + sttMs + " ms + Aufnahme " + recordingS + " s)";
+    const body2 = document.createElement("div");
+    body2.textContent = data.response;
+    lfmMsg.appendChild(meta2);
+    lfmMsg.appendChild(body2);
+    chatBox.appendChild(lfmMsg);
+
+    setMicState("✓ Antwort fertig");
+    setWorkState("success");
+    setTimeout(() => { if ($("work-status").textContent === "SUCCESS") setWorkState("ready"); }, 1500);
+  } catch (e) {
+    let err = {};
+    try { err = JSON.parse(e.message); } catch { err = { error: e.message }; }
+    setWorkState("error");
+    setMicState("❌ LFM-Fehler nach Transkription");
+    showError("Chat nach Audio fehlgeschlagen", [
+      ["MODEL", err.model || modelSelect.value || currentModel],
+      ["ERROR", err.error || e.message],
+      ["DETAILS", err.details || "-"]
+    ]);
+  }
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+/* Audio-Status laden */
+(async () => {
+  try {
+    const r = await fetch("/audio/status");
+    const st = await r.json();
+    setMicState("🎙️ " + (st.status === "online" ? "Bereit" : "OFFLINE"));
+    if (st.status === "online") {
+      micBtn.disabled = !audioSupported();
+    } else {
+      micBtn.disabled = true;
+      setMicState("❌ STT offline: " + (st.error || st.engine));
+    }
+  } catch (e) {
+    setMicState("❌ Audio-Status nicht erreichbar");
+  }
+})();
+
+micBtn.addEventListener("click", () => {
+  if (micBtn.classList.contains("recording")) stopRecording();
+  else startRecording();
+});
+
+/* ============ VOICE ACTIVATION ============ */
+
+const vaBtn = $("va-btn");
+const vaState = $("va-state");
+const vaTurns = $("va-turns");
+const vaTranscript = $("va-transcript");
+let vaActive = false;
+
+async function loadVoiceStatus() {
+  try {
+    const r = await fetch("/audio/voice/status");
+    if (!r.ok) return;
+    const d = await r.json();
+    updateVaUI(d);
+  } catch (e) { /* ignore */ }
+}
+
+function updateVaUI(d) {
+  vaBtn.disabled = false;
+  vaState.textContent = d.state;
+  vaState.className = d.state;
+  vaTurns.textContent = d.turns_processed > 0 ? d.turns_processed + " Turns" : "";
+  if (d.last_transcript) {
+    vaTranscript.textContent = "\"" + d.last_transcript + "\"";
+  }
+  if (d.state === "IDLE") {
+    vaBtn.textContent = "🎤 Voice Activation";
+    vaBtn.classList.remove("active");
+    vaActive = false;
+  } else {
+    vaBtn.textContent = "⏹️ Voice Stop";
+    vaBtn.classList.add("active");
+    vaActive = true;
+  }
+}
+
+vaBtn.addEventListener("click", async () => {
+  vaBtn.disabled = true;
+  try {
+    if (vaActive) {
+      await fetch("/audio/voice/stop", { method: "POST" });
+    } else {
+      await fetch("/audio/voice/start", { method: "POST" });
+    }
+    setTimeout(loadVoiceStatus, 300);
+  } catch (e) {
+    vaBtn.disabled = false;
+  }
+});
+
+loadVoiceStatus();
+setInterval(loadVoiceStatus, 3000);
+</script>
+</body>
+</html>

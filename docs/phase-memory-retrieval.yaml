@@ -1,0 +1,138 @@
+phase: memory-retrieval-v1
+status: PASS
+baseline_after: GUIALITA-MEMORY-RETRIEVAL-V1-PASS
+baseline_before: GUIALITA-MEMORY-SESSION-PASS
+date: "2026-08-19"
+classification: "FACT/OBSERVED/VERIFIED nur belegte Ergebnisse; INFERENCE markiert"
+
+objective: "Deterministisches lokales Memory-Retrieval für Cross-Session-Wissen"
+
+architecture:
+  embedding:
+    method: feature_hashing
+    dimensions: 512
+    version: 1
+    dependencies: numpy (bereits vorhanden)
+    deterministic: true
+    cpu_only: true
+    no_network: true
+  retrieval:
+    method: brute_force_cosine_similarity
+    min_score: 0.15
+    top_k: 4
+    max_retrieval_chars: 6000
+    scope: global
+  storage: "SQLite BLOB in memories-Tabelle"
+
+schema_v2:
+  memories:
+    columns: [id, source_message_id, session_id, content, embedding, embedding_version, created_at, metadata_json]
+    id_format: "MEM-<hex>"
+    embedding_format: "numpy float64 bytes (512 * 8 = 4096 bytes)"
+    indexes: [memories(session_id, created_at), memories(source_message_id)]
+    migration: "V1→V2 idempotent (CREATE TABLE IF NOT EXISTS)"
+
+files_created:
+  - backend/memory/embed.py
+  - backend/memory/retrieval.py
+  - tests/test_memory_retrieval.py
+  - docs/PHASE_MEMORY_RETRIEVAL_RESULT.md
+  - docs/phase-memory-retrieval.yaml
+
+files_modified:
+  - backend/memory/schema.py
+  - backend/memory/store.py
+  - backend/chat_service.py
+  - backend/main.py
+  - backend/models/schemas.py
+  - config/memory.yaml
+  - docs/GUIALITA_STATE.yaml
+  - docs/GUIALITA_SESSION_BOOTSTRAP.md
+  - docs/GUIALITA_PHASE_STATUS.md
+
+files_not_touched:
+  - scripts/audio_capture.py
+  - tests/test_capture.py
+  - scripts/process_audio.py
+  - tests/test_process_audio.py
+  - runtime/liquid-audio/
+  - models/lfm-audio-1.5b/
+  - backend/adapters/stt_whisper.py
+  - whisper runtime
+  - ollama (PID 2492667 unveraendert)
+  - desktop starter
+  - start.sh / stop.sh
+
+api:
+  GET /memory/status:
+    response: {enabled, embedding_version, memory_count, database_available}
+  POST /memory/search:
+    input: {query, top_k optional, session_id optional}
+    response: {status, count, results: [{memory_id, source_message_id, session_id, content, score, reason, created_at}]}
+  POST /chat: "erweitert um retrieval-Feld in Response"
+
+tests:
+  unit_tests:
+    t01_same_text_same_vector: PASS
+    t02_different_text_different_vector: PASS
+    t03_persist_and_retrieve: PASS
+    t04_relevant_query_retrieves_relevant_memory: PASS
+    t05_irrelevant_ranks_below_relevant: PASS
+    t06_min_score_excludes_weak: PASS
+    t07_top_k_limit: PASS
+    t08_provenance_preserved: PASS
+    t09_cross_session_retrieval: PASS
+    t10_restart_persistence: PASS
+  api_tests:
+    t11_memory_status: PASS
+    t12_memory_search: PASS
+    t13_retrieval_failure_does_not_break_chat: PASS
+  regression:
+    t14_test_memory: "16/16 PASS"
+    t15_test_api: "18/18 PASS"
+    t16_test_capture: "7/7 PASS"
+    t17_test_process_audio: "13/13 PASS"
+
+real_e2e:
+  session_a: "Mein Projekt heißt GUIALITA."
+  flood: "12 unzusammenhängende Witze → 26 Messages"
+  restart: "stop.sh + start.sh, Ollama PID 2492667 unverändert"
+  session_b: "Wie heißt mein Projekt?"
+  retrieved: "Mein Projekt heißt GUIALITA. (score=0.75)"
+  response: "Ihr Projekt heißt GUIALITA."
+  history_used: 5
+  verified: true
+
+chat_pipeline:
+  flow:
+    - validate request
+    - resolve/create session
+    - persist user message
+    - retrieve relevant older memories
+    - load recent session history
+    - build bounded context (memories + history)
+    - call ModelManager
+    - persist assistant response
+    - index both messages
+    - return response with retrieval metadata
+  fallback: "Retrieval-Fehler → reine History"
+
+known_limitations:
+  - "Feature-Hashing ist KEIN neuronales semantisches Embedding"
+  - "Qualitaet haengt von Token-Overlap ab"
+  - "Brute-Force Suche (linear) — bei >10k Memories wird Vektor-DB noetig"
+  - "Keine Memory-Aktualisierung oder Löschung"
+  - "Keine semantische Zusammenfassung"
+
+deferred:
+  - "Neuronales Embedding-Modell (bei >10k Memories)"
+  - "Vektor-DB (FAISS/Chroma)"
+  - "Memory-Aktualisierung und Löschung"
+  - "Graph Memory / GraphRAG"
+  - "Vision / TTS / Browser Automation"
+  - "MUSCAL Integration"
+
+dependencies: NONE (numpy bereits vorhanden, sqlite3 stdlib)
+ollama_pid_before: 2492667
+ollama_pid_after: 2492667
+hard_stop: true

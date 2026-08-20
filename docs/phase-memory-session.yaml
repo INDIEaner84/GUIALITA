@@ -1,0 +1,126 @@
+phase: memory-session
+status: PASS
+baseline_after: GUIALITA-MEMORY-SESSION-PASS
+date: "2026-08-18"
+classification: "FACT/OBSERVED/VERIFIED nur belegte Ergebnisse; INFERENCE markiert"
+
+objective: "Unterhaltung ueberlebt Backend-Neustart und kann fortgesetzt werden"
+
+storage:
+  engine: sqlite3 (stdlib, keine externe DB)
+  db_path: data/guialita.db
+  journal: "rollback journal (KEIN WAL)"
+  busy_timeout_ms: 5000
+  foreign_keys: ON
+  concurrency: "Single-Writer-Lock (threading.Lock), pro Prozess"
+
+schema_v1:
+  schema_info: [version, applied_at]
+  sessions: [id, title, status, created_at, updated_at, metadata_json]
+  messages: [id, session_id FK, role, content, model_id, generation_id, created_at, metadata_json]
+  index: "messages(session_id, created_at)"
+  ids: ["SES-<uuidhex>", "MSG-<uuidhex>"]
+  timestamps: "UTC ISO-8601"
+  idempotent: true
+  generation_id: "fortlaufend pro Session"
+
+files_created:
+  - backend/memory/__init__.py
+  - backend/memory/schema.py
+  - backend/memory/store.py
+  - backend/chat_service.py
+  - config/memory.yaml
+  - tests/test_memory.py
+  - docs/PHASE_MEMORY_SESSION_RESULT.md
+  - docs/phase-memory-session.yaml
+  - data/guialita.db (runtime)
+
+files_modified:
+  - backend/models/schemas.py
+  - backend/main.py
+  - backend/adapters/base.py
+  - backend/adapters/llamacpp_adapter.py
+  - backend/adapters/ollama_adapter.py
+  - backend/manager.py
+  - frontend/index.html
+  - docs/GUIALITA_STATE.yaml
+  - docs/GUIALITA_PHASE_STATUS.md
+  - docs/GUIALITA_SESSION_BOOTSTRAP.md
+
+files_not_touched:
+  - scripts/audio_capture.py
+  - tests/test_capture.py
+  - scripts/process_audio.py
+  - tests/test_process_audio.py
+  - runtime/liquid-audio/
+  - models/lfm-audio-1.5b/
+  - backend/adapters/stt_whisper.py
+  - whisper runtime
+  - ollama (PID 2492667 unveraendert)
+  - desktop starter
+  - start.sh / stop.sh
+
+api:
+  POST /sessions: create session
+  GET /sessions: list sessions
+  GET /sessions/{id}/messages: full persisted session
+  POST /chat: session_id optional; ohne session_id -> neue Session; mit -> History-Kontext
+
+chat_service:
+  flow: [resolve session, persist user message, load bounded history, build llm messages, existing ModelManager, persist assistant message]
+  recent_messages: 10
+  max_context_chars: 12000
+  config: config/memory.yaml
+
+adapter_compat:
+  messages=None: "bisheriges Verhalten exakt"
+  messages gegeben: "vollstaendige History an Modell"
+
+tests:
+  suite: tests/test_memory.py
+  result: "16/16 PASS"
+  t01_create_session: PASS
+  t02_persist_user_message: PASS
+  t03_persist_assistant_message: PASS
+  t04_database_close_reopen: PASS
+  t05_recover_session: PASS
+  t06_continue_recovered_session: PASS
+  t07_message_ordering: PASS
+  t08_session_isolation: PASS
+  t09_concurrent_append: "PASS (100 msgs, 4 threads, eindeutige ids)"
+  t10_duplicate_handling: PASS
+  t11_post_sessions: PASS
+  t12_get_sessions: PASS
+  t13_get_session_messages: PASS
+  t14_chat_without_session_id: PASS
+  t15_chat_with_session_id: PASS
+  t15b_unknown_session_404: PASS
+
+critical_e2e:
+  session_id: SES-26caaf19726146138874f924b79fbff2
+  round1: "Mein Projekt heißt GUIALITA. -> LFM antwortet (history_used=1)"
+  stop: "stop.sh, PID 2634780 beendet, Ollama 2492667 weiter"
+  start: "start.sh, PID 2636741 online"
+  round2: "Wie heißt mein Projekt? -> 'Das Projekt heißt **GUIALITA**.' (history_used=3)"
+  sqlite_verified: "4 messages, generation_id 1..4, reihenfolge user/assistant/user/assistant"
+
+regression:
+  api_tests: "18/18 PASS"
+  capture_tests: "7/7 PASS"
+  processing_tests: "13/13 PASS"
+  ollama_pid: "2492667 vor und nach, unveraendert"
+  audio_invariant: "unangetastet"
+
+limitations:
+  - "kein RAG/Embeddings/Graph/Vector DB (bewusst)"
+  - "history limit 10 messages / 12000 Zeichen; aeltere bleiben in DB, fallen nur aus Kontext"
+  - "keine semantische Zusammenfassung"
+  - "/audio/chat nutzt bisherigen Pfad ohne Session-Integration"
+
+risks:
+  - "exFAT + SQLite ohne WAL; Journal-Reste bei hartem Abbruch moeglich (konsistent via SQLite)"
+  - "Doppel-Instanz des Backends wuerde DB teilen (Single-Writer-Lock ist pro Prozess)"
+  - "DB waechst mit Session-Zahl (aktuell unbedeutend)"
+
+next_phase_proposal: "Memory-Retrieval (RAG, deterministisch) - nur nach expliziter Anweisung"
+hard_stop: true

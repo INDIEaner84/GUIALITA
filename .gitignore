@@ -1,0 +1,92 @@
+# ============================================
+# GUIALITA .gitignore
+# Excludes models, runtime binaries, large artifacts
+# ============================================
+
+# === Model files (GGUF, BIN) ===
+models/**/*.gguf
+models/**/*.bin
+models/**/*.ggml
+models/**/*.pt
+models/**/*.pth
+models/**/*.onnx
+models/**/*.safetensors
+models/**/*.ckpt
+models/**/tokenizer.model
+
+# === Runtime binaries ===
+runtime/liquid-audio/llama-liquid-audio-cli
+runtime/liquid-audio/llama-liquid-audio-server
+runtime/liquid-audio/lib*.so*
+runtime/liquid-audio/LICENSE*
+
+# === Python virtual environment ===
+.venv/
+venv/
+env/
+
+# === Data / Database ===
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# === Audio recordings (user data) ===
+audio/inbox/*.wav
+audio/processed/*.wav
+audio/*.wav
+
+# === Temp files ===
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# === Build artifacts ===
+*.egg-info/
+dist/
+build/
+*.egg
+
+# === IDE ===
+.vscode/
+.idea/
+*.code-workspace
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Prototypes with node_modules ===
+PROTOTYPEN/local-lfm-api-foundation/node_modules/
+PROTOTYPEN/local-multimodal-desktop-agent/node_modules/
+PROTOTYPEN/*/node_modules/
+PROTOTYPEN/**/target/
+PROTOTYPEN/**/build/
+PROTOTYPEN/**/.next/
+PROTOTYPEN/**/dist/
+
+# === Large prototype build artifacts ===
+PROTOTYPEN/**/*.gguf
+PROTOTYPEN/**/*.bin
+PROTOTYPEN/**/*.pt
+PROTOTYPEN/**/*.onnx
+PROTOTYPEN/**/*.zip
+PROTOTYPEN/**/*.sqlite
+PROTOTYPEN/**/*.sqlite-shm
+PROTOTYPEN/**/*.sqlite-wal
+PROTOTYPEN/**/data/
+
+# === Logs ===
+*.log
+logs/
+
+# === LFM Reference ===
+LFM\ REFERENZ\ GIT/

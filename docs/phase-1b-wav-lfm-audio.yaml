@@ -1,0 +1,178 @@
+phase: 1b
+name: wav-lfm-audio-transcription
+status: PASS
+baseline_marker: GUIALITA-PHASE-1B-PASS
+date: "2026-08-18"
+
+mission:
+  - wav ingestion
+  - lfm2.5-audio runtime verification
+  - model loading
+  - real inference
+  - transcription
+  - structured metadata
+  - safe filename generation
+  - wav rename/move
+  - validation
+  - tests
+  - documentation
+
+model:
+  name: LFM2.5-Audio-1.5B
+  vendor: Liquid AI
+  architecture: lfm2
+  format: GGUF v3 (Q4_0, 148 tensors)
+  files:
+    main: models/lfm-audio-1.5b/LFM2.5-Audio-1.5B-Q4_0.gguf
+    main_size_bytes: 695750880
+    mmproj: models/lfm-audio-1.5b/mmproj-LFM2.5-Audio-1.5B-Q4_0.gguf
+    vocoder: models/lfm-audio-1.5b/vocoder-LFM2.5-Audio-1.5B-Q4_0.gguf
+    tokenizer: models/lfm-audio-1.5b/tokenizer-LFM2.5-Audio-1.5B-Q4_0.gguf
+  source: LiquidAI/LFM2.5-Audio-1.5B-GGUF (HuggingFace, 2026-08-03)
+
+runtime:
+  name: llama-liquid-audio-cli
+  vendor: Liquid AI (official runner)
+  location: runtime/liquid-audio/
+  backend: CPU-only (libggml-cpu, no CUDA backend in runner)
+  basis: "llama.cpp PR #18641 (WIP, not merged upstream)"
+  libs: "libggml-base 0.9.5, libmtmd 0.0.7641"
+  llama_cpp_python_installed: "0.3.35"
+  llama_cpp_python_audio_api: none
+  llama_cpp_python_text_inference_with_audio_model: PASS
+
+compatibility:
+  installed_runtime_audio: INCOMPATIBLE
+  official_runner_audio: COMPATIBLE
+  classification: "COMPATIBLE via official LiquidAI runner; llama-cpp-python 0.3.35 has no audio API"
+
+lifecycle:
+  mode: load-per-inference
+  persistent: false
+  vram_before_mib: 4708
+  vram_during_mib: 4708
+  vram_after_mib: 4708
+  gpu_usage: none
+
+audio_format:
+  sample_rate: 16000
+  channels: 1
+  bit_depth: 16
+  preprocessing: none (runner-internal audio encoder)
+
+latency_ms_examples:
+  model_load: [497, 1975]
+  encode: [743, 5435]
+  decode: [1174, 2054]
+  total: [7113, 19506]
+
+result_schema:
+  audio_id: "AUDIO-000001 (counter file audio/.audio_id_counter)"
+  confidence: null
+  transcript: authoritative asr output
+
+filename_scheme: "YYYYMMDD_HHMMSS__<slug>.wav (slug: [a-z0-9aeouess-], max 60, collision suffix -2/-3)"
+
+directories:
+  inbox: audio/inbox/
+  processed: audio/processed/
+  failed: audio/failed/
+
+states:
+  - DISCOVERED
+  - VALIDATED
+  - LOADING_MODEL
+  - INFERENCE
+  - RESULT_RECEIVED
+  - METADATA_CREATED
+  - RENAMING
+  - COMPLETED
+  - FAILED
+
+error_handling:
+  missing_wav: FAILED
+  corrupt_wav: FAILED
+  unsupported_wav: FAILED
+  silent_wav: SILENT
+  missing_model: MODEL_ERROR
+  empty_transcript: NO_TRANSCRIPTION
+  inference_error: INFERENCE_ERROR
+  rename_error: FAILED (original preserved)
+  metadata_error: FAILED (original preserved)
+
+test_results:
+  automated_suite: tests/test_process_audio.py
+  result: "13/13 PASS"
+  t1_valid_speech: "PASS (transcript 'Hello, Guliya.')"
+  t2_second_wav: "PASS ('Massive sinatra test.')"
+  t3_silent: PASS
+  t4_very_short: "PASS (controlled, 'I')"
+  t5_longer: PASS
+  t6_invalid_wav: PASS
+  t7_missing_model: PASS
+  t8_unique_ids: PASS
+  t9_filename_safety: "PASS (5 unit tests)"
+  t10_duplicate: PASS
+
+real_audio_inference: PASS
+transcription: PASS
+wav_validation: PASS
+structured_metadata: PASS
+safe_renaming: PASS
+failure_preservation: PASS
+duplicate_handling: PASS
+
+regression:
+  api_tests: "18/18 PASS"
+  capture_tests: "7/7 PASS"
+  text_chat: PASS
+  health: PASS
+  gpu_detection: PASS
+  desktop_starter: PASS
+  ollama_http: PASS
+  ollama_pid_unchanged: PASS
+
+resources:
+  runner_download_mb: 13.2
+  runner_extracted_mb: 34
+  disk_footprint: "~34 MB, no model copies"
+
+known_issues:
+  - "ASR quality for German espeak synthesis is poor (model is EN-focused)"
+  - "runner is CPU-only; latency dominated by audio encode (0.7-5.4 s)"
+  - "llama-liquid-audio-cli is WIP (PR #18641), not in stable llama.cpp"
+  - "very short non-speech audio can produce short phantom transcript"
+  - "runner primarily verified with 16 kHz mono"
+
+known_risks:
+  - "runner builds may change on HuggingFace (WIP status)"
+  - "future llama.cpp may rename lfm2 architecture"
+  - "disk nearly full (32 GB free); no further large downloads without approval"
+  - "gguf package in venv only for verification, removable"
+
+files_created:
+  - scripts/process_audio.py
+  - tests/test_process_audio.py
+  - runtime/liquid-audio/
+  - docs/PHASE_1B_WAV_LFM_AUDIO.md
+  - docs/phase-1b-wav-lfm-audio.yaml
+  - audio/processed/
+
+files_modified:
+  - docs/GUIALITA_STATE.yaml
+  - docs/GUIALITA_SESSION_BOOTSTRAP.md
+  - docs/GUIALITA_PHASE_STATUS.md
+  - venv: gguf 0.19.0 (verification only)
+
+files_deleted: []
+
+rollback:
+  - "rm -rf runtime/liquid-audio scripts/process_audio.py tests/test_process_audio.py"
+  - "rm audio/processed/* audio/.audio_id_counter"
+  - "pip uninstall gguf"
+  - "revert state docs to PHASE 1A"
+
+next_phase:
+  phase: "1C (Voice -> LFM -> TTS)"
+  authorized: false
+  note: "start only after separate approval"

@@ -1,0 +1,48 @@
+# GUIALITA Phase: Voice Activation V1
+phase: voice_activation_v1
+status: PASS
+baseline: GUIALITA-VOICE-ACTIVATION-V1-PASS
+date: 2026-08-19
+
+# What was implemented
+type: voice_activation
+trigger: automatic_energy_based
+state_machine: IDLE_CALIBRATING_READY_RECORDING_SILENCE_PROCESSING_SPEAKING_ERROR
+calibration: automatic_ambient_noise
+threshold: auto_from_calibration
+
+# Components
+components:
+  - config/voice.yaml
+  - backend/audio/voice_activation.py
+  - backend/main.py (API endpoints)
+  - frontend/index.html (voice UI)
+  - tests/test_voice_activation.py
+
+# Test results
+tests:
+  total: 37
+  passed: 37
+  failed: 0
+
+# Regression
+regression:
+  total: 71
+  passed: 71
+  failed: 0
+
+# Dependencies
+dependencies:
+  sounddevice: 0.5.6 (pre-existing)
+  numpy: 2.5.2 (pre-existing)
+
+# Known limitations
+limitations:
+  - headless_no_speech_input
+  - energy_based_only
+  - no_vad
+  - no_streaming
+  - no_full_duplex
+  - no_barge_in
+  - no_wake_word
+  - english_only

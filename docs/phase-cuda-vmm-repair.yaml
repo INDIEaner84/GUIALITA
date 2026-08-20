@@ -1,0 +1,78 @@
+# GUIALITA Phase: CUDA VMM Repair
+phase: cuda_vmm_repair
+status: PASS
+baseline: GUIALITA-VOICE-ACTIVATION-V1-PASS
+date: 2026-08-20
+
+# Purpose
+Restore CUDA GPU acceleration for llama-cpp-python by:
+1. Disabling VMM (compile-time fix)
+2. Creating unified CUDA toolkit path
+3. Rebooting to clear driver state
+
+# Root Cause
+primary: CUDA VMM cuMemAddressReserve crash
+secondary: Xid 31 MMU fault + 29-day driver state
+tertiary: Debian split CUDA toolkit path
+
+# Build Configuration
+llama_cpp_python_version: 0.3.35
+ggml_cuda: ON
+ggml_cuda_no_vmm: ON
+cuda_toolkit: 12.0.140
+cuda_driver: 12.2
+build_exit: 0
+wheel_size_mb: 241
+libggml_cuda_size_mb: 104
+
+# GPU Verification
+cuda_initialized: TRUE
+gpu_detected: NVIDIA GeForce GTX 1080 Ti
+vram_total_mib: 11169
+vmm_disabled: TRUE
+gpu_offload_support: TRUE
+gpu_layers_offloaded: 41/41
+vram_model_buffer_mib: 1998.84
+vram_kv_buffer_mib: 320.00
+vram_compute_buffer_mib: 350.01
+inference_works: TRUE
+
+# Performance
+cold_load_cpu_ms: 197000
+cold_load_gpu_ms: 50000
+warm_inference_cpu_ms: 23000
+warm_inference_gpu_ms: 6000
+gpu_utilization_percent: 54
+
+# Regression
+total_tests: 79
+tests_passed: 79
+tests_failed: 0
+
+# Ollama
+ollama_pid_before: 2492667
+ollama_pid_after: 1675
+ollama_changed: NO (reboot only)
+
+# Files
+guialita_modified: NO
+models_modified: NO
+ollama_modified: NO
+
+# Gates
+CUDA_LLAMA_BUILD: PASS
+CUDA_TOOLKIT: 12.0.140
+GGML_CUDA: ON
+GGML_CUDA_NO_VMM: ON
+LIBGGML_CUDA: PRESENT
+GPU_OFFLOAD_SUPPORT: TRUE
+GPU_LAYERS_OFFLOADED: VERIFIED
+VRAM_INCREASE: VERIFIED
+INFERENCE_WORKS: PASS
+NO_NEW_XID_ERRORS: PASS
+REGRESSION: PASS
+OLLAMA_UNCHANGED: YES
+GUIALITA_UNCHANGED: YES
+
+# Final Status
+CUDA_GPU_ACCELERATION: PASS

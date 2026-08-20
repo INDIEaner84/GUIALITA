@@ -1,0 +1,28 @@
+GUIALITA-PHASE-0-PASS
+
+Dieser Zustand wurde funktional getestet.
+
+Timestamp:  2026-08-18 19:06 CEST
+Status:     PASS
+Phase:      0 (Browser -> Local LFM -> Browser)
+
+Verifikation:
+- Health Check:          PASS (HTTP 200, api:online, gpu:true)
+- Real Inference:        PASS (exakte Antwort "LFM CONNECTION TEST OK", 114 ms)
+- Tests:                 9/9 PASS
+- E2E:                   PASS
+- Ollama Isolation:      PASS (SHARED Service unangetastet, laeuft weiter)
+- Desktop Starter:       PASS (~/.local/share/applications/GUIALITA.desktop)
+- Stop:                  PASS (beendet nur GUIALITA-Prozesse)
+
+Environment Fingerprint:
+- OS:                    Linux Mint 22.3, Kernel 6.14.0-37-generic, x86_64
+- CPU:                   Intel Core i7-3930K (6C/12T)
+- GPU:                   NVIDIA GTX 1080 Ti 11 GB, Driver 535.288.01, CUDA 12.2
+- Runtime:               llama-cpp-python 0.3.35 (CUDA), FastAPI 0.141.1
+- Ollama:                0.30.10 (SHARED, Port 11434)
+- Primärmodell:          granite-4.1-3b Q4_K_M (VERIFIED)
+- Backend:               http://localhost:8080
+
+Details: docs/PHASE_0_BASELINE.md
+Machine-readable: docs/phase-0-baseline.yaml

@@ -1,0 +1,125 @@
+phase: memory-graph-foundation-v1
+status: PASS
+baseline_after: GUIALITA-MEMORY-GRAPH-V1-PASS
+baseline_before: GUIALITA-MEMORY-RETRIEVAL-V1-PASS
+date: "2026-08-19"
+classification: "FACT/OBSERVED/VERIFIED nur belegte Ergebnisse; INFERENCE markiert"
+
+objective: "Persistente Graph-Darstellung (Entitäten + Beziehungen) über der Memory-Schicht"
+
+architecture:
+  entity_extraction: "deterministisch, regelbasiert (Wortschatz + Zitate + Pfade + Großbuchstaben)"
+  relation_extraction: "pattern-basiert (uses/is_a/has/related_to) + Co-occurrence"
+  storage: "SQLite (entities + relations Tabellen)"
+  traversal: "1-Hop (outgoing + incoming)"
+  graph_in_chat: "OPTIONAL / INSPECTABLE (nicht automatisch)"
+
+schema_v3:
+  entities:
+    columns: [id, canonical_name, entity_type, extraction_version, metadata_json, created_at]
+    id_format: "ENT-<hex>"
+    unique: "(canonical_name, entity_type)"
+    indexes: [entities(canonical_name), entities(entity_type)]
+  relations:
+    columns: [id, source_entity_id, relation_type, target_entity_id, source_memory_id, extraction_version, metadata_json, created_at]
+    id_format: "REL-<hex>"
+    unique: "(source_entity_id, relation_type, target_entity_id, source_memory_id)"
+    indexes: [relations(source_entity_id), relations(target_entity_id), relations(source_memory_id)]
+
+extraction:
+  version: 1
+  known_entities: 53
+  relation_types: [uses, is_a, has, related_to]
+  methods: [known_vocabulary, quoted_terms, file_paths, capitalized_words]
+  false_positives: "dokumentiert und akzeptabel (Großbuchstaben-Erkennung)"
+
+files_created:
+  - backend/memory/extractor.py
+  - tests/test_memory_graph.py
+  - docs/PHASE_MEMORY_GRAPH_FOUNDATION_RESULT.md
+  - docs/phase-memory-graph-foundation.yaml
+
+files_modified:
+  - backend/memory/schema.py
+  - backend/memory/store.py
+  - backend/memory/retrieval.py
+  - backend/main.py
+  - backend/models/schemas.py
+  - docs/GUIALITA_STATE.yaml
+  - docs/GUIALITA_SESSION_BOOTSTRAP.md
+  - docs/GUIALITA_PHASE_STATUS.md
+
+files_not_touched:
+  - scripts/audio_capture.py
+  - tests/test_capture.py
+  - scripts/process_audio.py
+  - tests/test_process_audio.py
+  - runtime/liquid-audio/
+  - models/lfm-audio-1.5b/
+  - backend/adapters/stt_whisper.py
+  - whisper runtime
+  - ollama (PID 2492667 unverändert)
+  - desktop starter
+  - start.sh / stop.sh
+
+api:
+  GET /memory/graph/{entity_name}:
+    response: {status, entity, outgoing, incoming, entity_count, relation_count}
+  GET /memory/status:
+    response: {enabled, embedding_version, memory_count, database_available, entity_count, relation_count}
+
+tests:
+  unit_tests:
+    t01_entity_creation: PASS
+    t02_duplicate_entity_normalization: PASS
+    t03_relation_creation: PASS
+    t04_relation_deduplication: PASS
+    t05_provenance_preservation: PASS
+    t06_entity_extraction: PASS
+    t07_relation_extraction: PASS
+    t08_1hop_traversal: PASS
+    t09_irrelevant_entity_no_relations: PASS
+    t10_persistence_after_reopen: PASS
+  api_tests:
+    t11_memory_status_with_graph: PASS
+    t12_memory_graph_endpoint: PASS
+  regression:
+    t13_test_memory_retrieval: "13/13 PASS"
+    t14_test_memory: "16/16 PASS"
+    test_api: "18/18 PASS"
+    test_capture: "7/7 PASS"
+    test_process_audio: "13/13 PASS"
+
+real_e2e:
+  seed: "GUIALITA uses Granite for everything."
+  graph_query: "GET /memory/graph/GUIALITA"
+  entity_found: true
+  relation_found: "GUIALITA → uses → granite"
+  restart: "stop.sh + start.sh"
+  post_restart: "Graph persisted, 22 outgoing relations"
+  verified: true
+
+chat_pipeline:
+  graph_indexing: "integriert in MemoryIndexer (nach Memory-Persistenz)"
+  graph_injection: "OPTIONAL / INSPECTABLE (nicht automatisch)"
+  existing_retrieval: "unverändert (Feature-Hashing)"
+
+known_limitations:
+  - "False Positives bei Großbuchstaben-Erkennung (dokumentiert)"
+  - "Co-occurrence erzeugt viele related_to Relationen"
+  - "1-Hop-Traversale nur (keine Multi-Hop)"
+  - "Keine semantische Reasoning oder Graph-Inferenz"
+
+deferred:
+  - "GraphRAG (Query über Graph + LLM)"
+  - "Multi-Hop-Traversale"
+  - "Semantische Relation-Extraktion (via LLM)"
+  - "Entity-Löschung und -Aktualisierung"
+  - "Graph-Visualisierung"
+  - "Vision / TTS / Browser Automation"
+  - "MUSCAL Integration"
+
+dependencies: NONE (numpy bereits vorhanden, sqlite3 stdlib)
+ollama_pid_before: 2492667
+ollama_pid_after: 2492667
+hard_stop: true

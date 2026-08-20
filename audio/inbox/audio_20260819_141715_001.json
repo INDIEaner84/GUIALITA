@@ -1,0 +1,20 @@
+{
+  "filename": "audio_20260819_141715_001.wav",
+  "timestamp": "2026-08-19T14:17:15",
+  "duration_ms": 1600,
+  "sample_rate": 16000,
+  "channels": 1,
+  "sample_width": 16,
+  "peak_db": -3.4,
+  "rms_db": -21.5,
+  "trigger": "level",
+  "device": 15,
+  "thresholds": {
+    "speech_threshold_db": -35.0,
+    "silence_threshold_db": -45.0,
+    "silence_timeout_ms": 700,
+    "minimum_speech_ms": 400,
+    "maximum_recording_ms": 30000,
+    "pre_roll_ms": 400
+  }
+}
