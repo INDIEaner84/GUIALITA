@@ -13,11 +13,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
+from .. import paths
 from .schema import ensure_schema
 
 log = logging.getLogger("guialita.memory")
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BASE_DIR = paths.root()
 
 
 def _now() -> str:
@@ -32,8 +33,9 @@ class MemoryStore:
     """SQLite-basierter Store für Sessions und Messages (Schema V1)."""
 
     def __init__(self, db_path: Optional[str] = None):
+        # Vorrang: expliziter Parameter > GUIALITA_DB > GUIALITA_DATA_ROOT
         self.db_path = db_path or os.environ.get(
-            "GUIALITA_DB", os.path.join(BASE_DIR, "data", "guialita.db")
+            "GUIALITA_DB", os.path.join(paths.data_root(), "guialita.db")
         )
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self._lock = threading.Lock()

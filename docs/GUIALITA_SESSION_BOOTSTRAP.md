@@ -75,6 +75,18 @@ Umgebungsabhängige Tests: `GUIALITA_VENV_PY`, `GUIALITA_TEST_DEVICE_ID`.
 Ein Test, der in der aktuellen Umgebung nicht laufen kann, ist
 `NOT EXECUTED` — nicht `PASS` und nicht `FAIL`.
 
+### Latenzmessung
+
+```bash
+python3 scripts/measure_voice_turn.py --record --turns 3   # Mikrofon
+python3 scripts/measure_voice_turn.py --wav <datei.wav>    # reproduzierbar
+python3 scripts/measure_voice_turn.py --text "…"           # ohne STT
+```
+
+Misst STT, LLM, Memory-Overhead und TTS einzeln, unterscheidet kalten und
+warmen Turn und schreibt einen Report nach `docs/measurements/`. Stufen, die
+nicht laufen können, werden als `NOT_EXECUTED` ausgewiesen — nie als `PASS`.
+
 ---
 
 ## 5. Konventionen

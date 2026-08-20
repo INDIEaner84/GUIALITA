@@ -121,6 +121,8 @@ phases:
     measured_stt_ms: 14000
     measured_llm_warm_ms: 23000
     closes_when: "Sprach-Turn-Latenz nach dem CUDA-Repair neu gemessen und dokumentiert"
+    measurement_tool: scripts/measure_voice_turn.py
+    measurement_output: docs/measurements/voice-turn-<zeitstempel>.yaml
     note: >
       Der CUDA-VMM-Repair adressiert die primäre Ursache (LLM auf CPU).
       Es existiert jedoch KEINE Nachmessung der vollständigen Sprachpipeline
@@ -229,9 +231,35 @@ current:
   next_authorized_phase: NONE
   hard_stop: true
   recommended_next: voice_latency_remeasurement
+  recommended_next_tool: "scripts/measure_voice_turn.py --record --turns 3"
   recommended_next_reason: >
     Einziges offenes Gate. Schließt voice_forensics_v1 ab und liefert die
     Messgrundlage für jede weitere Optimierungsentscheidung.
+
+# ------------------------------------------------------------
+# Nicht vorhandene Fähigkeiten — explizit, um Fehlannahmen zu vermeiden
+# ------------------------------------------------------------
+capabilities_absent:
+  desktop_control:
+    status: NOT_STARTED
+    note: >
+      In GUIALITA existiert KEIN Desktop-Code: kein Endpunkt, kein Screenshot,
+      keine Maus-/Tastatursteuerung. Der TypeScript-Prototyp unter
+      PROTOTYPEN/local-multimodal-desktop-agent/ ist NICHT angebunden
+      (eigene Konfiguration, eigene Datenbank), hat controlEnabled=false als
+      Default, keine installierten Abhängigkeiten und fehlerhafte
+      xdotool-Aufrufe (mouseclick/mousescroll existieren nicht) — er wurde nie
+      gegen einen echten X-Server ausgeführt.
+  vision:
+    status: NOT_STARTED
+    note: >
+      LFM2.5-VL-Modelle sind in config/models.yaml konfiguriert, aber kein
+      Code im Backend verwendet sie. Konfiguration ist keine Fähigkeit.
+  browser_control:
+    status: NOT_STARTED
+  streaming_stt_tts:
+    status: NOT_STARTED
+    note: "kein Streaming, kein Full-Duplex, kein Barge-in (Voice Forensics V1)"
 
 prohibitions:
   - "Phase 1C ohne explizite Autorisierung implementieren"
