@@ -4,13 +4,18 @@ from typing import Dict, Optional
 
 import yaml
 
+from . import paths
 from .adapters.llamacpp_adapter import LlamaCppAdapter
 from .adapters.ollama_adapter import OllamaAdapter
 from .adapters.stt_whisper import WhisperSTTAdapter
 
 log = logging.getLogger("guialita.manager")
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = paths.root()
+
+# Konfigurationsschlüssel, deren Werte als Dateipfade behandelt werden
+# (Platzhalter-Expansion + Absolutmachung beim Laden der Konfiguration).
+PATH_KEYS = ("path", "mmproj", "tokenizer", "vocoder", "cli_path", "model_path")
 
 
 class ModelManager:
@@ -21,23 +26,31 @@ class ModelManager:
         self.ollama = OllamaAdapter(base_url=self._config.get("server", {}).get("ollama_url", "http://127.0.0.1:11434"))
         self.default_model = self._config.get("default_model", "granite-3b")
         stt_cfg = self._config.get("stt", {})
-        model_path = stt_cfg.get("model_path", "models/whisper/ggml-base.bin")
-        if not os.path.isabs(model_path):
-            model_path = os.path.join(BASE_DIR, model_path)
         self.stt = WhisperSTTAdapter(
-            cli_path=stt_cfg.get("cli_path", "/home/hz/whisper.cpp/build/bin/whisper-cli"),
-            model_path=model_path,
+            cli_path=stt_cfg.get("cli_path") or paths.whisper_cli(),
+            model_path=stt_cfg.get("model_path")
+            or os.path.join(paths.model_root(), "whisper", "ggml-base.bin"),
         )
         self.stt_config = stt_cfg
 
     def _resolve_path(self, path: str) -> str:
-        if not os.path.isabs(path):
-            path = os.path.join(BASE_DIR, path)
-        return os.path.abspath(path)
+        return paths.resolve(path)
 
     def _load_config(self) -> dict:
         with open(self.config_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f) or {}
+        return self._expand_paths(config)
+
+    @classmethod
+    def _expand_paths(cls, node, key: Optional[str] = None):
+        """Löst ${GUIALITA_*}-Platzhalter auf und macht Pfadwerte absolut."""
+        if isinstance(node, dict):
+            return {k: cls._expand_paths(v, k) for k, v in node.items()}
+        if isinstance(node, list):
+            return [cls._expand_paths(v, key) for v in node]
+        if isinstance(node, str) and key in PATH_KEYS:
+            return paths.resolve(node)
+        return node
 
     def get_models(self) -> dict:
         return self._config.get("models", {})

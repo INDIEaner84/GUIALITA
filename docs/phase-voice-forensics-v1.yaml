@@ -5,7 +5,8 @@ baseline: GUIALITA-VOICE-ACTIVATION-V1-PASS
 date: 2026-08-19
 
 # Purpose
-Diagnose root cause of high latency and context issues in voice pipeline.
+purpose: >
+  Diagnose root cause of high latency and context issues in voice pipeline.
 
 # Findings Summary
 

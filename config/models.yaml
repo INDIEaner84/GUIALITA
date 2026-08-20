@@ -11,25 +11,29 @@ server:
   port: 8080
   ollama_url: http://127.0.0.1:11434
 
-# Speech-to-Text (Phase 1)
-# Grund: llama_cpp_python hat keinen Audio-Support. LFM2.5-Audio ist daher
-# nicht direkt als STT nutzbar. Verwendet wird die vorhandene lokale
-# whisper.cpp-Runtime (bereits gebaut).
+# Speech-to-Text
+# Architekturentscheidung siehe docs/adr/ADR-001-stt-whisper-cpp.md
+# Kurz: llama-cpp-python hat keinen Audio-Input-Support, LFM2.5-Audio ist
+# daher nicht als STT nutzbar. Verwendet wird die lokale whisper.cpp-Runtime.
+# Pfade sind über ${GUIALITA_*} konfigurierbar (siehe .env.example).
 stt:
   engine: whisper.cpp
-  cli_path: /home/hz/whisper.cpp/build/bin/whisper-cli
-  model_path: models/whisper/ggml-base.bin
+  cli_path: ${GUIALITA_WHISPER_CLI}
+  model_path: ${GUIALITA_MODEL_ROOT}/whisper/ggml-base.bin
   language: de
   sample_rate: 16000
   max_audio_bytes: 25000000
 
-# Hinweis: exFAT unterstützt keine Symlinks.
-# Die Granite-Modelle werden direkt über ihren Originalpfad referenziert.
+# Modellpfade
+# ${GUIALITA_MODEL_ROOT}          - Modelle im Repository (Default: ./models)
+# ${GUIALITA_EXTERNAL_MODEL_ROOT} - gemeinsam genutzter Modellspeicher
+#                                   (Default: identisch mit MODEL_ROOT)
+# Maschinenspezifische Werte gehoeren in eine lokale .env (siehe .env.example).
 models:
   granite-3b:
     name: granite-4.1-3b
     adapter: llamacpp
-    path: /media/hz/_Ext_Seagat/AiEnvHz/LFM Granite Muscal/models/granite/3b/granite-4.1-3b-Q4_K_M.gguf
+    path: ${GUIALITA_EXTERNAL_MODEL_ROOT}/granite/3b/granite-4.1-3b-Q4_K_M.gguf
     n_ctx: 4096
     n_gpu_layers: 99
     max_tokens: 512
@@ -38,7 +42,7 @@ models:
   granite-8b:
     name: granite-4.1-8b
     adapter: llamacpp
-    path: /media/hz/_Ext_Seagat/AiEnvHz/LFM Granite Muscal/models/granite/8b/granite-4.1-8b-Q4_K_M.gguf
+    path: ${GUIALITA_EXTERNAL_MODEL_ROOT}/granite/8b/granite-4.1-8b-Q4_K_M.gguf
     n_ctx: 4096
     n_gpu_layers: 99
     max_tokens: 512
@@ -47,7 +51,7 @@ models:
   lfm-agent-8b:
     name: LFM2.5-8B-A1B
     adapter: llamacpp
-    path: /media/hz/_Ext_Seagat/AiEnvHz/LFM Granite Muscal/models/lfm/agent/LFM2.5-8B-A1B-Q4_K_M.gguf
+    path: ${GUIALITA_EXTERNAL_MODEL_ROOT}/lfm/agent/LFM2.5-8B-A1B-Q4_K_M.gguf
     n_ctx: 4096
     n_gpu_layers: 99
     max_tokens: 512
@@ -56,8 +60,8 @@ models:
   lfm-vision-3b:
     name: LFM2.5-VL-3B
     adapter: llamacpp
-    path: models/lfm-vision-3b/LFM2.5-VL-3B-Q4_K_M.gguf
-    mmproj: models/lfm-vision-3b/mmproj-LFM2.5-VL-3B-Q8_0.gguf
+    path: ${GUIALITA_MODEL_ROOT}/lfm-vision-3b/LFM2.5-VL-3B-Q4_K_M.gguf
+    mmproj: ${GUIALITA_MODEL_ROOT}/lfm-vision-3b/mmproj-LFM2.5-VL-3B-Q8_0.gguf
     n_ctx: 4096
     n_gpu_layers: 99
     max_tokens: 512
@@ -66,8 +70,8 @@ models:
   lfm-vision-1.6b:
     name: LFM2.5-VL-1.6B
     adapter: llamacpp
-    path: models/lfm-vision-1.6b/LFM2.5-VL-1.6B-Q4_K_M.gguf
-    mmproj: models/lfm-vision-1.6b/mmproj-LFM2.5-VL-1.6b-Q8_0.gguf
+    path: ${GUIALITA_MODEL_ROOT}/lfm-vision-1.6b/LFM2.5-VL-1.6B-Q4_K_M.gguf
+    mmproj: ${GUIALITA_MODEL_ROOT}/lfm-vision-1.6b/mmproj-LFM2.5-VL-1.6b-Q8_0.gguf
     n_ctx: 4096
     n_gpu_layers: 99
     max_tokens: 512
@@ -76,10 +80,10 @@ models:
   lfm-audio-1.5b:
     name: LFM2.5-Audio-1.5B
     adapter: llamacpp
-    path: models/lfm-audio-1.5b/LFM2.5-Audio-1.5B-Q4_0.gguf
-    mmproj: models/lfm-audio-1.5b/mmproj-LFM2.5-Audio-1.5B-Q4_0.gguf
-    tokenizer: models/lfm-audio-1.5b/tokenizer-LFM2.5-Audio-1.5B-Q4_0.gguf
-    vocoder: models/lfm-audio-1.5b/vocoder-LFM2.5-Audio-1.5B-Q4_0.gguf
+    path: ${GUIALITA_MODEL_ROOT}/lfm-audio-1.5b/LFM2.5-Audio-1.5B-Q4_0.gguf
+    mmproj: ${GUIALITA_MODEL_ROOT}/lfm-audio-1.5b/mmproj-LFM2.5-Audio-1.5B-Q4_0.gguf
+    tokenizer: ${GUIALITA_MODEL_ROOT}/lfm-audio-1.5b/tokenizer-LFM2.5-Audio-1.5B-Q4_0.gguf
+    vocoder: ${GUIALITA_MODEL_ROOT}/lfm-audio-1.5b/vocoder-LFM2.5-Audio-1.5B-Q4_0.gguf
     n_ctx: 4096
     n_gpu_layers: 99
     max_tokens: 512

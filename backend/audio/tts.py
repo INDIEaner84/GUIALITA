@@ -7,16 +7,19 @@ import struct
 import logging
 import time
 
+from .. import paths
+
 logger = logging.getLogger("guialita.tts")
 
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-RUNTIME_DIR = os.path.join(PROJECT_DIR, "runtime", "liquid-audio")
+PROJECT_DIR = paths.root()
+RUNTIME_DIR = os.path.join(paths.runtime_root(), "liquid-audio")
 CLI_BINARY = os.path.join(RUNTIME_DIR, "llama-liquid-audio-cli")
 
-DEFAULT_MODEL = os.path.join(PROJECT_DIR, "models", "lfm-audio-1.5b", "LFM2.5-Audio-1.5B-Q4_0.gguf")
-DEFAULT_MMPROJ = os.path.join(PROJECT_DIR, "models", "lfm-audio-1.5b", "mmproj-LFM2.5-Audio-1.5B-Q4_0.gguf")
-DEFAULT_VOCODER = os.path.join(PROJECT_DIR, "models", "lfm-audio-1.5b", "vocoder-LFM2.5-Audio-1.5B-Q4_0.gguf")
-DEFAULT_TOKENIZER = os.path.join(PROJECT_DIR, "models", "lfm-audio-1.5b", "tokenizer-LFM2.5-Audio-1.5B-Q4_0.gguf")
+_AUDIO_MODEL_DIR = os.path.join(paths.model_root(), "lfm-audio-1.5b")
+DEFAULT_MODEL = os.path.join(_AUDIO_MODEL_DIR, "LFM2.5-Audio-1.5B-Q4_0.gguf")
+DEFAULT_MMPROJ = os.path.join(_AUDIO_MODEL_DIR, "mmproj-LFM2.5-Audio-1.5B-Q4_0.gguf")
+DEFAULT_VOCODER = os.path.join(_AUDIO_MODEL_DIR, "vocoder-LFM2.5-Audio-1.5B-Q4_0.gguf")
+DEFAULT_TOKENIZER = os.path.join(_AUDIO_MODEL_DIR, "tokenizer-LFM2.5-Audio-1.5B-Q4_0.gguf")
 
 VOICES = {
     "us_female": "Perform TTS. Use the US female voice.",

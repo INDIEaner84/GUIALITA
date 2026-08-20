@@ -90,3 +90,6 @@ logs/
 
 # === LFM Reference ===
 LFM\ REFERENZ\ GIT/
+
+# === Lokale Pfadkonfiguration (maschinenspezifisch) ===
+.env

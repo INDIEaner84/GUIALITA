@@ -5,7 +5,8 @@
 
 set -u
 
-GUIALITA_DIR="/media/hz/_Ext_Seagat/GUIALITA"
+# Repository-Wurzel: aus GUIALITA_ROOT, sonst relativ zu diesem Skript.
+GUIALITA_DIR="${GUIALITA_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 LOG_DIR="$GUIALITA_DIR/scripts/logs"
 PID_FILE="$LOG_DIR/guialita.pid"
 
@@ -29,7 +30,7 @@ else
     for p in $pids; do
         cmdline=$(tr '\0' ' ' < /proc/$p/cmdline 2>/dev/null)
         case "$cmdline" in
-            *GUIALITA*|*/home/hz/.guialita-venv/*) echo "$p" ;;
+            *"$GUIALITA_DIR"*|*GUIALITA*) echo "$p" ;;
         esac
     done > /tmp/guialita_pids.$$
     pids=$(cat /tmp/guialita_pids.$$ 2>/dev/null); rm -f /tmp/guialita_pids.$$

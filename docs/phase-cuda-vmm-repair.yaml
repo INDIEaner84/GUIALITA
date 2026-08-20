@@ -5,10 +5,11 @@ baseline: GUIALITA-VOICE-ACTIVATION-V1-PASS
 date: 2026-08-20
 
 # Purpose
-Restore CUDA GPU acceleration for llama-cpp-python by:
-1. Disabling VMM (compile-time fix)
-2. Creating unified CUDA toolkit path
-3. Rebooting to clear driver state
+purpose: >
+  Restore CUDA GPU acceleration for llama-cpp-python by:
+  1. Disabling VMM (compile-time fix)
+  2. Creating unified CUDA toolkit path
+  3. Rebooting to clear driver state
 
 # Root Cause
 primary: CUDA VMM cuMemAddressReserve crash

@@ -1,0 +1,42 @@
+# GUIALITA — Laufzeitabhängigkeiten
+#
+# Installation:
+#     python3 -m venv .venv
+#     .venv/bin/pip install -r requirements.txt
+#
+# ACHTUNG llama-cpp-python: Das Standard-Wheel ist CPU-only. Für GPU-Betrieb
+# muss aus dem Quellcode mit CUDA gebaut werden — siehe docs/PHASE_CUDA_VMM_REPAIR_RESULT.md.
+#
+# Nicht über pip installierbar (externe Systemkomponenten):
+#   - whisper.cpp (whisper-cli)          → STT,  siehe docs/adr/ADR-001-stt-whisper-cpp.md
+#   - llama-liquid-audio-cli             → TTS,  runtime/liquid-audio/
+#   - Ollama (optional, SHARED SERVICE)  → sekundärer Adapter, Port 11434
+#   - Modelldateien (*.gguf, *.bin)      → scripts/download_models.sh
+#
+# Versionen: untere Schranken entsprechen dem validierten Zustand
+# (Baseline CUDA-VMM-Repair, 2026-08-20). Siehe docs/GUIALITA_STATE.yaml.
+
+# --- HTTP-Backend ---
+fastapi>=0.141.1
+uvicorn>=0.30
+pydantic>=2.0
+httpx>=0.27
+
+# --- Konfiguration ---
+PyYAML>=6.0
+
+# --- Audio / Numerik ---
+# Hinweis: docs/GUIALITA_SESSION_BOOTSTRAP.md nannte früher "numpy 2.5.2".
+# Diese Version existiert auf PyPI nicht (höchste veröffentlichte: 2.4.x).
+# Die Angabe war unbelegt; hier steht daher eine verifizierbare Schranke.
+numpy>=2.0
+sounddevice>=0.5.6
+
+# --- LLM-Runtime (primär) ---
+# Für CUDA: CMAKE_ARGS="-DGGML_CUDA=on -DGGML_CUDA_NO_VMM=ON" pip install --no-binary :all: llama-cpp-python==0.3.35
+llama-cpp-python>=0.3.35
+
+# --- Tests ---
+# Die Testsuiten nutzen ausschließlich die Standardbibliothek (unittest,
+# urllib) plus die oben genannten Laufzeitpakete. Es gibt bewusst keine
+# separate Test-Abhängigkeit.

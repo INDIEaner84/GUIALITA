@@ -5,7 +5,8 @@
 
 set -u
 
-GUIALITA_DIR="/media/hz/_Ext_Seagat/GUIALITA"
+# Repository-Wurzel: aus GUIALITA_ROOT, sonst relativ zu diesem Skript.
+GUIALITA_DIR="${GUIALITA_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 MODELS_DIR="$GUIALITA_DIR/models"
 
 info() { echo "[GUIALITA] $*"; }

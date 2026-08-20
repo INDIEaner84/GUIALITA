@@ -5,7 +5,7 @@ Echte LFM2.5-Audio-Inferenz (kein Mock) für T1, T2, T4, T5, T7, T8, T10.
 Unit-Tests für Dateinamen-Sicherheit (T9) und WAV-Validierung (T3, T6).
 
 Usage:
-    /home/hz/.guialita-venv/bin/python tests/test_process_audio.py
+    python3 tests/test_process_audio.py
 """
 
 import os

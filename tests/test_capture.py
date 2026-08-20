@@ -9,7 +9,10 @@ Voraussetzung:
     ~/.asoundrc mit pcm.guialita_vmic (type pulse, device guialita_vmic.monitor)
 
 Usage:
-    /home/hz/.guialita-venv/bin/python tests/test_capture.py
+    python3 tests/test_capture.py
+
+Die Python-Umgebung ist über GUIALITA_VENV_PY, das Audio-Device über
+GUIALITA_TEST_DEVICE_ID konfigurierbar.
 """
 
 import os
@@ -22,8 +25,8 @@ import wave
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(PROJECT_DIR, "scripts", "audio_capture.py")
 INBOX = os.path.join(PROJECT_DIR, "audio", "inbox")
-VENV_PY = "/home/hz/.guialita-venv/bin/python"
-DEVICE_ID = 15
+VENV_PY = os.environ.get("GUIALITA_VENV_PY", sys.executable)
+DEVICE_ID = int(os.environ.get("GUIALITA_TEST_DEVICE_ID", "15"))
 
 RESULTS = []
 
