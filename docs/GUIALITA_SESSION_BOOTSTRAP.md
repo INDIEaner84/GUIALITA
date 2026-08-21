@@ -39,13 +39,27 @@ Rollen pro Modalität siehe `stt_architecture` in `GUIALITA_STATE.yaml` und
 ## 3. Einrichtung
 
 ```bash
+git clone -b arena/01a01e70-guialita https://github.com/INDIEaner84/GUIALITA.git
+cd GUIALITA
+
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt   # llama-cpp-python für GPU siehe Hinweis darin
 
-cp .env.example .env                        # Pfade an die Maschine anpassen
+bash scripts/setup_local.sh                 # sucht Modelle/Runtime, schreibt .env
 bash scripts/start.sh                       # Backend + Browser
 bash scripts/stop.sh                        # beendet NUR GUIALITA-Prozesse
 ```
+
+`scripts/setup_local.sh` durchsucht Repo, Heimverzeichnis und eingehängte
+Datenträger nach Granite, LFM-Audio, der Liquid-Runtime und `whisper-cli`
+und schreibt die Fundstellen in `.env`. Es kopiert und löscht nichts.
+`--dry-run` zeigt nur an, `--hint /pfad` ergänzt einen Suchort. Alternativ
+`.env.example` von Hand kopieren.
+
+**Hinweis exFAT**: Auf exFAT-Datenträgern gehen Ausführungsrechte und
+Symlinks verloren. Das Repository gehört besser auf ein Linux-Dateisystem;
+die Modelle können über `GUIALITA_EXTERNAL_MODEL_ROOT` auf der externen
+Platte bleiben.
 
 Ohne `.env` löst GUIALITA alles repository-relativ auf (`models/`,
 `runtime/`, `data/`, `whisper-cli` aus `$PATH`). Maschinenspezifische Pfade
