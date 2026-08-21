@@ -56,6 +56,16 @@ und schreibt die Fundstellen in `.env`. Es kopiert und löscht nichts.
 `--dry-run` zeigt nur an, `--hint /pfad` ergänzt einen Suchort. Alternativ
 `.env.example` von Hand kopieren.
 
+Nach dem Start prüfen, ob alles gefunden wurde:
+
+```bash
+curl -s localhost:8080/diagnostics | python3 -m json.tool
+```
+
+Zeigt aufgelöste Pfade, ob die Dateien existieren, welche Fähigkeiten fehlen
+(`missing_capabilities`) und ob ein Sprach-Turn möglich ist
+(`ready_for_voice_turn`).
+
 **Hinweis exFAT**: Auf exFAT-Datenträgern gehen Ausführungsrechte und
 Symlinks verloren. Das Repository gehört besser auf ein Linux-Dateisystem;
 die Modelle können über `GUIALITA_EXTERNAL_MODEL_ROOT` auf der externen

@@ -79,6 +79,41 @@ class TestAPIHealth(unittest.TestCase):
         self.assertIn("models", data)
 
 
+class TestDiagnostics(unittest.TestCase):
+    """Diagnose-Endpunkt: aufgelöste Pfade und fehlende Fähigkeiten."""
+
+    def test_diagnostics_returns_200(self):
+        status, data = http_get("/diagnostics")
+        self.assertEqual(status, 200)
+        self.assertIn("environment", data)
+        self.assertIn("capabilities", data)
+
+    def test_diagnostics_lists_env_variables(self):
+        _, data = http_get("/diagnostics")
+        for key in ("GUIALITA_ROOT", "GUIALITA_MODEL_ROOT",
+                    "GUIALITA_EXTERNAL_MODEL_ROOT", "GUIALITA_WHISPER_CLI"):
+            self.assertIn(key, data["environment"], f"{key} fehlt in /diagnostics")
+
+    def test_diagnostics_model_paths_are_absolute_and_checked(self):
+        _, data = http_get("/diagnostics")
+        self.assertGreater(len(data["models"]), 0)
+        for mid, m in data["models"].items():
+            self.assertTrue(m["path"].startswith("/"), f"{mid}: Pfad nicht absolut")
+            self.assertNotIn("${", m["path"], f"{mid}: Platzhalter nicht aufgelöst")
+            self.assertIn("exists", m)
+
+    def test_diagnostics_reports_missing_capabilities(self):
+        _, data = http_get("/diagnostics")
+        caps = data["capabilities"]
+        missing = data["missing_capabilities"]
+        self.assertEqual(sorted(missing), sorted(k for k, v in caps.items() if not v))
+        self.assertEqual(data["ready_for_voice_turn"], not missing)
+
+    def test_diagnostics_stt_engine_is_supported(self):
+        _, data = http_get("/diagnostics")
+        self.assertIn(data["stt"]["engine"], data["stt"]["supported_engines"])
+
+
 class TestModelConnectivity(unittest.TestCase):
     def test_models_listed(self):
         _, data = http_get("/models")

@@ -17,6 +17,12 @@ BASE_DIR = paths.root()
 # (Platzhalter-Expansion + Absolutmachung beim Laden der Konfiguration).
 PATH_KEYS = ("path", "mmproj", "tokenizer", "vocoder", "cli_path", "model_path")
 
+# STT-Engines, für die ein Adapter existiert. Ein Wechsel ist eine
+# Architekturentscheidung und erfordert eine ADR — siehe
+# docs/adr/ADR-001-stt-whisper-cpp.md.
+SUPPORTED_STT_ENGINES = {"whisper.cpp"}
+DEFAULT_STT_ENGINE = "whisper.cpp"
+
 
 class ModelManager:
     def __init__(self, config_path: Optional[str] = None):
@@ -26,6 +32,19 @@ class ModelManager:
         self.ollama = OllamaAdapter(base_url=self._config.get("server", {}).get("ollama_url", "http://127.0.0.1:11434"))
         self.default_model = self._config.get("default_model", "granite-3b")
         stt_cfg = self._config.get("stt", {})
+        # `stt.engine` war bisher dekorativ: der Wert wurde nur in Antworten
+        # zurückgespiegelt, der Adapter aber fest verdrahtet. Ein Tippfehler
+        # oder eine bewusst andere Engine blieb dadurch unbemerkt.
+        # Jetzt wird der Wert geprüft — unbekannte Engines fallen sofort auf.
+        engine = str(stt_cfg.get("engine", DEFAULT_STT_ENGINE)).strip().lower()
+        if engine not in SUPPORTED_STT_ENGINES:
+            raise ValueError(
+                f"Unbekannte STT-Engine in {self.config_path}: '{engine}'. "
+                f"Unterstützt: {sorted(SUPPORTED_STT_ENGINES)}. "
+                f"Ein Wechsel der STT-Runtime erfordert eine neue ADR "
+                f"(siehe docs/adr/ADR-001-stt-whisper-cpp.md)."
+            )
+        self.stt_engine = engine
         self.stt = WhisperSTTAdapter(
             cli_path=stt_cfg.get("cli_path") or paths.whisper_cli(),
             model_path=stt_cfg.get("model_path")
@@ -97,6 +116,48 @@ class ModelManager:
             "models": self.list_models(),
         }
 
+    def diagnostics(self) -> dict:
+        """Aufgelöste Pfade und Runtime-Verfügbarkeit — zur Fehlersuche nach
+        der Einrichtung. Zeigt für jeden Pfad, ob er tatsächlich existiert."""
+        def entry(path):
+            return {"path": path, "exists": bool(path) and os.path.exists(path)}
+
+        stt_cfg = self.stt_config
+        models = {}
+        for mid, cfg in self.get_models().items():
+            models[mid] = {
+                "name": cfg.get("name", mid),
+                "adapter": cfg.get("adapter", "llamacpp"),
+                **entry(cfg.get("path", "")),
+            }
+
+        return {
+            "config_file": self.config_path,
+            "environment": paths.describe(),
+            "env_file": entry(os.path.join(paths.root(), ".env")),
+            "default_model": self.default_model,
+            "models": models,
+            "stt": {
+                "engine": self.stt_engine,
+                "supported_engines": sorted(SUPPORTED_STT_ENGINES),
+                "cli": entry(self.stt.cli_path),
+                "model": entry(self.stt.model_path),
+                "available": self.stt.is_available(),
+                "language": stt_cfg.get("language", "auto"),
+            },
+            "llm": {
+                "runtime": "llama-cpp-python",
+                "installed": self.llamacpp.is_available(),
+                "models_available": sum(1 for m in models.values() if m["exists"]),
+                "models_configured": len(models),
+            },
+            "ollama": {
+                "shared_service": True,
+                "note": "wird nur erkannt, nie gestoppt oder verändert",
+                **self.ollama.health(),
+            },
+        }
+
     def chat(self, message: str, model_id: Optional[str] = None, messages: Optional[list] = None,
              **kwargs) -> dict:
         cfg = self.get_model_cfg(model_id)
@@ -126,7 +187,7 @@ class ModelManager:
 
     def stt_health(self) -> dict:
         h = self.stt.health()
-        h["engine"] = self.stt_config.get("engine", "whisper.cpp")
+        h["engine"] = self.stt_engine
         h["language"] = self.stt_config.get("language", "auto")
         h["sample_rate"] = self.stt_config.get("sample_rate", 16000)
         return h
@@ -135,5 +196,5 @@ class ModelManager:
         lang = self.stt_config.get("language", "auto")
         sample_rate = int(self.stt_config.get("sample_rate", 16000))
         result = self.stt.transcribe(wav_bytes, language=lang, sample_rate=sample_rate)
-        result["engine"] = self.stt_config.get("engine", "whisper.cpp")
+        result["engine"] = self.stt_engine
         return result

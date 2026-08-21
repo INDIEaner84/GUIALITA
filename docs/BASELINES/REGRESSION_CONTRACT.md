@@ -24,6 +24,7 @@ VOICE_REGRESSION      = FAIL if voice activation broken
 AUDIO_REGRESSION      = FAIL if GET /audio/status broken
 OLLAMA_REGRESSION     = FAIL if Ollama PID changed or config modified
 DEPENDENCY_REGRESSION = FAIL if new heavy dependencies added
+DIAGNOSTICS_REGRESSION = FAIL if GET /diagnostics broken or paths unresolved
 ```
 
 ## Test Suites (must all PASS)
@@ -31,7 +32,7 @@ DEPENDENCY_REGRESSION = FAIL if new heavy dependencies added
 | Suite | Tests | Voraussetzung | Deckt ab |
 |---|---|---|---|
 | `tests/test_voice_activation.py` | 37 | keine | Voice-Zustandsautomat, STT/Chat/TTS-Anbindung |
-| `tests/test_api.py` | 18 | Backend | alle HTTP-Endpunkte |
+| `tests/test_api.py` | 23 | Backend | alle HTTP-Endpunkte inkl. /diagnostics |
 | `tests/test_memory_retrieval.py` | 17 | Backend | Embedding + Retrieval |
 | `tests/test_memory.py` | 16 | Backend | Session + Memory-Store |
 | `tests/test_tts.py` | 16 | Backend, TTS-Runtime | TTS-Erzeugung + Regression |
@@ -39,7 +40,7 @@ DEPENDENCY_REGRESSION = FAIL if new heavy dependencies added
 | `tests/test_graph_visualization.py` | 13 | Backend | Graph-API + Frontend |
 | `tests/test_process_audio.py` | 5 | LFM-Audio-Runtime, espeak-ng | WAV → Transkript (Batch) |
 | `tests/test_capture.py` | 0 | Mikrofon, espeak-ng | Aufnahme (Prozedurskript, keine `test_*`-Methoden) |
-| **Summe** | **136** | | **vollständige Regression** |
+| **Summe** | **141** | | **vollständige Regression** |
 
 ### Korrektur der Testzahl (2026-08-21)
 
@@ -49,7 +50,7 @@ Subprozesse. Beim Lauf aller neun Suiten wurde `test_memory.py` **achtmal** und
 `test_api.py` **sechsmal** ausgeführt — **35 Suite-Läufe statt 9**. Dieselben
 Tests wurden mehrfach gezählt.
 
-Die tatsächliche Zahl ist **136 Testfunktionen in 9 Suiten**.
+Die tatsächliche Zahl ist **141 Testfunktionen in 9 Suiten** (136 bei der Korrektur, +5 durch die Tests für `/diagnostics`).
 
 Verbindlicher Lauf:
 
