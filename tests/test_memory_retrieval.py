@@ -216,6 +216,19 @@ class TestRetrievalAPI(unittest.TestCase):
         self.assertIn("response", data)
 
 
+# Verschachtelte Suite-Aufrufe: Diese Klasse startet andere Testsuiten als
+# Subprozesse. Das führte dazu, dass beim Lauf aller Suiten test_memory.py
+# achtmal und test_api.py sechsmal ausgeführt wurde (35 Suite-Läufe statt 9)
+# und dass ein einziges fehlendes Backend als Kaskade vieler Fehler erschien.
+# Standard: übersprungen. scripts/run_all_tests.py führt jede Suite genau
+# einmal aus. Altes Verhalten erzwingen: GUIALITA_TEST_NESTED=1
+NESTED_ENABLED = os.environ.get("GUIALITA_TEST_NESTED", "0") == "1"
+NESTED_REASON = ("verschachtelter Suite-Aufruf deaktiviert - "
+                 "scripts/run_all_tests.py laeuft jede Suite genau einmal "
+                 "(GUIALITA_TEST_NESTED=1 erzwingt das alte Verhalten)")
+
+
+@unittest.skipUnless(NESTED_ENABLED, NESTED_REASON)
 class TestRegression(unittest.TestCase):
     """T14-T17: Bestehende Suites laufen unverändert."""
 

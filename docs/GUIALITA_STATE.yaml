@@ -206,6 +206,40 @@ reproducibility:
     nicht nachträglich verändert.
 
 # ------------------------------------------------------------
+# Tests — belastbare Zahlen statt widersprüchlicher Angaben
+# ------------------------------------------------------------
+testing:
+  status: DOCUMENTED
+  runner: scripts/run_all_tests.py
+  test_functions_total: 136
+  suites: 9
+  previous_claims: [108, 79, 71, 145]
+  previous_claims_note: >
+    Alle vier Angaben waren falsch. Drei Suiten starteten andere Suiten als
+    Subprozesse; beim Lauf aller neun Suiten wurde test_memory.py achtmal und
+    test_api.py sechsmal ausgeführt (35 Suite-Läufe statt 9), wodurch dieselben
+    Tests mehrfach gezählt wurden.
+  nested_suite_calls: "standardmäßig deaktiviert (GUIALITA_TEST_NESTED=1 reaktiviert)"
+  grading_rule: >
+    Tests aus einer NOT_EXECUTED-Suite zählen nicht als bestanden, auch wenn
+    einzelne durchliefen. Der Runner weist sie getrennt aus.
+  suite_inventory:
+    test_voice_activation.py: {tests: 37, requires: none}
+    test_api.py: {tests: 18, requires: backend}
+    test_memory_retrieval.py: {tests: 17, requires: backend}
+    test_memory.py: {tests: 16, requires: backend}
+    test_tts.py: {tests: 16, requires: "backend, tts-runtime"}
+    test_memory_graph.py: {tests: 14, requires: backend}
+    test_graph_visualization.py: {tests: 13, requires: backend}
+    test_process_audio.py: {tests: 5, requires: "lfm-audio-runtime, espeak-ng"}
+    test_capture.py: {tests: 0, requires: "mikrofon, espeak-ng"}
+  ci_capable: false
+  ci_note: >
+    Sieben von neun Suiten benötigen ein laufendes Backend, Modelle, GPU,
+    Mikrofon oder espeak-ng. Nur test_voice_activation.py läuft ohne
+    Voraussetzungen.
+
+# ------------------------------------------------------------
 # Verifizierte Umgebung (Referenzmaschine)
 # ------------------------------------------------------------
 environment:
@@ -281,7 +315,7 @@ known_issues:
   - "Audio-Device-Index ist systemabhängig (--list-devices)"
 
 known_risks:
-  - "Testsuiten benötigen laufendes Backend, echtes Mikrofon und GPU — nicht CI-fähig"
+  - "8 von 9 Testsuiten benötigen Backend, Modelle, GPU, Mikrofon oder espeak-ng — nicht CI-fähig"
   - "VAD-Schwellen sind umgebungsabhängig"
   - "Runner-Builds auf HuggingFace können sich ändern (WIP)"
   - "Plattenplatz begrenzt — keine großen Downloads ohne Freigabe"

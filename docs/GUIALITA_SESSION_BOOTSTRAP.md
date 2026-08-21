@@ -59,16 +59,24 @@ Konfigurierbare Variablen: `GUIALITA_ROOT`, `GUIALITA_MODEL_ROOT`,
 
 ## 4. Tests
 
-Die Suiten sind eigenständige `unittest`-Skripte, kein pytest. Mehrere
-benötigen ein **laufendes Backend**, ein **echtes Mikrofon** und eine **GPU**
-— sie sind bewusst nicht CI-fähig.
+Die Suiten sind eigenständige `unittest`-Skripte, kein pytest. **136
+Testfunktionen in 9 Suiten**; 8 davon brauchen Backend, Modelle, GPU,
+Mikrofon oder espeak-ng und sind daher nicht CI-fähig.
 
 ```bash
-python3 tests/test_api.py                 # Backend muss laufen
-python3 tests/test_memory.py
-python3 tests/test_voice_activation.py    # Mikrofon
-python3 tests/test_process_audio.py       # LFM-Audio-Runner + Modell
+python3 scripts/run_all_tests.py          # alle Suiten, jede genau einmal
+python3 scripts/run_all_tests.py --list   # Inventar ohne Ausführung
+python3 scripts/run_all_tests.py --only memory tts
+python3 tests/test_api.py                 # einzelne Suite (Backend nötig)
 ```
+
+Der Runner stuft jede Suite als `PASS`, `FAIL` oder `NOT_EXECUTED` ein und
+nennt bei `NOT_EXECUTED` die fehlende Voraussetzung. Tests aus einer
+`NOT_EXECUTED`-Suite zählen **nicht** als bestanden.
+
+Verschachtelte Suite-Aufrufe (eine Suite startet andere als Subprozess) sind
+standardmäßig aus — sie verfälschten früher die Testzahlen.
+`GUIALITA_TEST_NESTED=1` stellt das alte Verhalten her.
 
 Umgebungsabhängige Tests: `GUIALITA_VENV_PY`, `GUIALITA_TEST_DEVICE_ID`.
 
