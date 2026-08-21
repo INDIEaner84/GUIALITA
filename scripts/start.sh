@@ -7,9 +7,29 @@ set -u
 
 # Repository-Wurzel: aus GUIALITA_ROOT, sonst relativ zu diesem Skript.
 GUIALITA_DIR="${GUIALITA_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# Lokale Konfiguration laden (setup_local.sh erzeugt sie).
+# Bereits gesetzte Umgebungsvariablen behalten Vorrang.
+if [ -f "$GUIALITA_DIR/.env" ]; then
+    while IFS='=' read -r key value; do
+        case "$key" in ''|\#*) continue ;; esac
+        key="$(echo "$key" | tr -d ' ')"
+        [ -z "$key" ] && continue
+        if [ -z "$(eval "echo \${$key:-}")" ]; then
+            export "$key=$value"
+        fi
+    done < "$GUIALITA_DIR/.env"
+fi
+
 # Python-Umgebung: GUIALITA_VENV, sonst .venv im Repo, sonst System-Python.
 VENV="${GUIALITA_VENV:-$GUIALITA_DIR/.venv}"
 PORT=8080
+RESTART=0
+for arg in "$@"; do
+    case "$arg" in
+        --restart) RESTART=1 ;;
+        -h|--help) echo "Nutzung: start.sh [--restart]"; exit 0 ;;
+    esac
+done
 LOG_DIR="$GUIALITA_DIR/scripts/logs"
 BACKEND_LOG="$LOG_DIR/backend.log"
 PID_FILE="$LOG_DIR/guialita.pid"
@@ -43,9 +63,17 @@ if [ ! -f "$MODEL_FILE" ]; then
 fi
 
 # ---------- 3. Backend starten (nur wenn nicht bereits aktiv) ----------
-if curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
+if curl -sf "$HEALTH_URL" > /dev/null 2>&1 && [ "$RESTART" -eq 0 ]; then
     info "Backend laeuft bereits auf $HEALTH_URL"
+    info "ACHTUNG: Ein laufendes Backend nutzt den Code vom Startzeitpunkt."
+    info "Nach 'git pull' oder Konfigurationsaenderungen neu starten:"
+    info "  bash scripts/start.sh --restart"
 else
+    if [ "$RESTART" -eq 1 ] && curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
+        info "Neustart angefordert - beende laufendes Backend"
+        bash "$GUIALITA_DIR/scripts/stop.sh" > /dev/null 2>&1 || true
+        sleep 2
+    fi
     if [ -f "$PID_FILE" ]; then
         OLD_PID=$(cat "$PID_FILE")
         if kill -0 "$OLD_PID" 2>/dev/null; then

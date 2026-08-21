@@ -51,10 +51,18 @@ bash scripts/stop.sh                        # beendet NUR GUIALITA-Prozesse
 ```
 
 `scripts/setup_local.sh` durchsucht Repo, Heimverzeichnis und eingehängte
-Datenträger nach Granite, LFM-Audio, der Liquid-Runtime und `whisper-cli`
-und schreibt die Fundstellen in `.env`. Es kopiert und löscht nichts.
-`--dry-run` zeigt nur an, `--hint /pfad` ergänzt einen Suchort. Alternativ
-`.env.example` von Hand kopieren.
+Datenträger nach Granite, LFM-Audio, der Liquid-Runtime und `whisper-cli`.
+Was sich über eine Wurzelvariable abbilden lässt, landet in `.env`; für
+abweichende Ordnernamen (z. B. `models/lfm/audio/` statt `lfm-audio-1.5b/`)
+legt es **Symlinks** unter `models/` an. Es kopiert und löscht nichts.
+`--dry-run` zeigt nur an, `--hint /pfad` ergänzt einen Suchort.
+
+**Nach jedem `git pull` das Backend neu starten** — ein laufender Prozess
+nutzt den Code vom Startzeitpunkt:
+
+```bash
+bash scripts/start.sh --restart
+```
 
 Nach dem Start prüfen, ob alles gefunden wurde:
 

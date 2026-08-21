@@ -52,7 +52,8 @@ find_file() {
     for d in "${SEARCH_DIRS[@]}"; do
         [ -n "$d" ] && [ -d "$d" ] || continue
         hit=$(find "$d" -maxdepth "$depth" -name "$pattern" -type f -print -quit 2>/dev/null)
-        [ -n "$hit" ] && { echo "$hit"; return 0; }
+        # Pfad normalisieren (entfernt ../ und Symlink-Umwege)
+        [ -n "$hit" ] && { readlink -f "$hit" 2>/dev/null || echo "$hit"; return 0; }
     done
     return 1
 }
@@ -97,16 +98,65 @@ else
     miss "kein Granite-Modell gefunden — Textchat bleibt offline"
 fi
 
-# ---------- 4. Modelle im Repo (LFM Audio / Vision) ----------
+# ---------- 4. Modelle in die erwartete Struktur verlinken ----------
+# GUIALITA erwartet:  <MODEL_ROOT>/lfm-audio-1.5b/…  und  <MODEL_ROOT>/whisper/…
+# Auf echten Maschinen liegen die Dateien oft anders (z. B. models/lfm/audio/).
+# Statt die Wurzel zu raten — was bei abweichenden Ordnernamen nicht funktionieren
+# kann — werden Symlinks in <REPO>/models/ angelegt. Nichts wird kopiert.
 echo "  Suche LFM-Audio-Modell …"
 MODEL_ROOT=""
+LINK_DIR="$REPO/models"
+SYMLINKS_OK=1
+
+link_into_models() {   # $1 = Zielpfad, $2 = Name unter models/
+    local target="$1" name="$2" dest="$LINK_DIR/$2"
+    mkdir -p "$(dirname "$dest")" 2>/dev/null || { SYMLINKS_OK=0; return 1; }
+    [ -e "$dest" ] && [ ! -L "$dest" ] && return 0      # echtes Verzeichnis: nicht anfassen
+    rm -f "$dest" 2>/dev/null
+    if ln -s "$target" "$dest" 2>/dev/null; then
+        ok "models/$name → $target"
+        return 0
+    fi
+    SYMLINKS_OK=0
+    return 1
+}
+
 audio=$(find_file "LFM2.5-Audio-1.5B-Q4_0.gguf" 8)
 if [ -n "${audio:-}" ]; then
-    MODEL_ROOT="$(dirname "$(dirname "$audio")")"
+    AUDIO_DIR="$(dirname "$audio")"
     ok "LFM-Audio gefunden: $audio"
-    info "  → GUIALITA_MODEL_ROOT=$MODEL_ROOT"
+    if [ "$DRY_RUN" -eq 0 ]; then
+        link_into_models "$AUDIO_DIR" "lfm-audio-1.5b"
+    else
+        info "  → würde verlinken: models/lfm-audio-1.5b → $AUDIO_DIR"
+    fi
+    for extra in mmproj tokenizer vocoder; do
+        [ -f "$AUDIO_DIR/$extra-LFM2.5-Audio-1.5B-Q4_0.gguf" ] \
+            || miss "  $extra-Datei fehlt in $AUDIO_DIR — TTS bleibt unvollständig"
+    done
 else
     miss "kein LFM-Audio-Modell gefunden — TTS bleibt offline"
+fi
+
+if [ -n "${WHISPER_MODEL:-}" ]; then
+    if [ "$DRY_RUN" -eq 0 ]; then
+        link_into_models "$WHISPER_MODEL" "whisper/$(basename "$WHISPER_MODEL")"
+    else
+        info "  → würde verlinken: models/whisper/$(basename "$WHISPER_MODEL")"
+    fi
+fi
+
+echo "  Suche LFM-Vision-Modell …"
+vision=$(find_file "LFM2.5-VL-3B-Q4_K_M.gguf" 8)
+if [ -n "${vision:-}" ]; then
+    ok "LFM-Vision gefunden: $vision"
+    [ "$DRY_RUN" -eq 0 ] && link_into_models "$(dirname "$vision")" "lfm-vision-3b"
+else
+    miss "kein LFM-Vision-Modell gefunden (wird derzeit nicht verwendet)"
+fi
+
+if [ "$SYMLINKS_OK" -eq 0 ]; then
+    miss "Symlinks nicht möglich (exFAT/FAT?) — trage GUIALITA_MODEL_ROOT von Hand ein"
 fi
 
 # ---------- 5. Liquid-Audio-Runtime ----------
@@ -117,6 +167,7 @@ if [ -n "${liquid:-}" ]; then
     RUNTIME_ROOT="$(dirname "$(dirname "$liquid")")"
     ok "Runtime gefunden: $liquid"
     info "  → GUIALITA_RUNTIME_ROOT=$RUNTIME_ROOT"
+    [ -x "$liquid" ] || miss "  nicht ausführbar — beheben: chmod +x \"$liquid\""
 else
     miss "llama-liquid-audio-cli nicht gefunden — TTS bleibt offline"
 fi
@@ -155,8 +206,11 @@ fi
     echo
     [ -n "$EXTERNAL_ROOT" ] && echo "GUIALITA_EXTERNAL_MODEL_ROOT=$EXTERNAL_ROOT" \
                             || echo "# GUIALITA_EXTERNAL_MODEL_ROOT=   # nicht gefunden"
-    [ -n "$MODEL_ROOT" ]    && echo "GUIALITA_MODEL_ROOT=$MODEL_ROOT" \
-                            || echo "# GUIALITA_MODEL_ROOT=            # nicht gefunden"
+    if [ "$SYMLINKS_OK" -eq 1 ]; then
+        echo "# GUIALITA_MODEL_ROOT=            # Standard: \$GUIALITA_ROOT/models (Symlinks angelegt)"
+    else
+        echo "# GUIALITA_MODEL_ROOT=            # Symlinks fehlgeschlagen - bitte von Hand setzen"
+    fi
     [ -n "$RUNTIME_ROOT" ]  && echo "GUIALITA_RUNTIME_ROOT=$RUNTIME_ROOT" \
                             || echo "# GUIALITA_RUNTIME_ROOT=          # nicht gefunden"
     [ -n "$WHISPER_CLI" ]   && echo "GUIALITA_WHISPER_CLI=$WHISPER_CLI" \
@@ -169,19 +223,6 @@ fi
 } > "$ENV_FILE"
 
 ok ".env geschrieben: $ENV_FILE"
-
-if [ -n "$WHISPER_MODEL" ] && [ -n "$MODEL_ROOT" ]; then
-    expected="$MODEL_ROOT/whisper/$(basename "$WHISPER_MODEL")"
-    if [ ! -f "$expected" ]; then
-        echo
-        info "Hinweis: Das Whisper-Modell liegt unter"
-        info "  $WHISPER_MODEL"
-        info "erwartet wird es unter"
-        info "  $expected"
-        info "Verlinken oder kopieren:"
-        info "  mkdir -p \"$MODEL_ROOT/whisper\" && cp \"$WHISPER_MODEL\" \"$expected\""
-    fi
-fi
 
 echo
 echo "  Nächste Schritte:"

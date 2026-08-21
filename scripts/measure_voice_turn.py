@@ -54,6 +54,44 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
+
+def _reexec_in_venv():
+    """Startet dieses Skript im konfigurierten Venv neu, falls nötig.
+
+    Auf der Referenzmaschine liegt sounddevice in /home/hz/.guialita-venv,
+    nicht im System-Python. Wer `python3 scripts/…` aufruft, scheiterte bisher
+    an ModuleNotFoundError. GUIALITA_VENV (aus .env) wird jetzt beachtet.
+    """
+    if os.environ.get("GUIALITA_NO_REEXEC"):
+        return
+    venv = os.environ.get("GUIALITA_VENV")
+    if not venv:
+        env_file = os.path.join(BASE_DIR, ".env")
+        if os.path.isfile(env_file):
+            with open(env_file, encoding="utf-8") as fh:
+                for line in fh:
+                    if line.strip().startswith("GUIALITA_VENV="):
+                        venv = line.split("=", 1)[1].strip().strip('"').strip("'")
+                        break
+    if not venv:
+        return
+    venv = os.path.expanduser(venv)
+    candidate = os.path.join(venv, "bin", "python")
+    if not os.path.isfile(candidate):
+        return
+    # Vergleich über sys.prefix, nicht über den Interpreterpfad: das
+    # Venv-Python ist meist ein Symlink auf denselben Interpreter, hat aber
+    # andere site-packages.
+    if os.path.realpath(sys.prefix) == os.path.realpath(venv):
+        return
+    env = dict(os.environ, GUIALITA_NO_REEXEC="1")
+    print(f"  Wechsle in die konfigurierte Umgebung: {candidate}", flush=True)
+    os.execve(candidate, [candidate, os.path.abspath(__file__)] + sys.argv[1:], env)
+
+
+_reexec_in_venv()
+
+
 NOT_EXECUTED = "NOT_EXECUTED"
 PASS = "PASS"
 FAIL = "FAIL"
