@@ -44,18 +44,65 @@ PASS = "PASS"
 FAIL = "FAIL"
 NOT_EXECUTED = "NOT_EXECUTED"
 
-# Voraussetzungen je Suite — ehrlich benannt, damit NOT_EXECUTED begründbar ist.
+# Voraussetzungen je Suite — vor dem Lauf geprüft, damit NOT_EXECUTED
+# begründet ist und nicht als Fehlschlag erscheint.
 SUITES = [
-    ("test_voice_activation.py",    "Voice-Zustandsautomat",      [],                       300),
-    ("test_memory.py",              "Session + Memory-Store",     ["backend"],              300),
-    ("test_memory_retrieval.py",    "Embedding + Retrieval",      ["backend"],              600),
-    ("test_memory_graph.py",        "Entities + Relationen",      ["backend"],              600),
-    ("test_graph_visualization.py", "Graph-API + Frontend",       ["backend"],              600),
-    ("test_api.py",                 "HTTP-Endpunkte",             ["backend"],              600),
-    ("test_tts.py",                 "TTS-Erzeugung",              ["backend", "tts"],       900),
-    ("test_capture.py",             "Mikrofonaufnahme",           ["mikrofon"],             300),
-    ("test_process_audio.py",       "WAV → LFM-Audio (Batch)",    ["lfm-audio-runtime"],    900),
+    ("test_voice_activation.py",    "Voice-Zustandsautomat",   [],                          300),
+    ("test_memory.py",              "Session + Memory-Store",  ["backend", "llm"],          300),
+    ("test_memory_retrieval.py",    "Embedding + Retrieval",   ["backend", "llm"],          600),
+    ("test_memory_graph.py",        "Entities + Relationen",   ["backend", "llm"],          600),
+    ("test_graph_visualization.py", "Graph-API + Frontend",    ["backend"],                 600),
+    ("test_api.py",                 "HTTP-Endpunkte",          ["backend", "llm"],          600),
+    ("test_tts.py",                 "TTS-Erzeugung",           ["backend", "tts"],          900),
+    ("test_capture.py",             "Mikrofonaufnahme",        ["mikrofon", "espeak"],      300),
+    ("test_process_audio.py",       "WAV → LFM-Audio (Batch)", ["lfm-audio-runtime", "espeak"], 900),
 ]
+
+CAPABILITY_LABEL = {
+    "backend": "Backend erreichbar (http://localhost:8080)",
+    "llm":     "LLM-Runtime geladen (llama-cpp-python + Modell)",
+    "tts":     "TTS-Runtime (llama-liquid-audio-cli + LFM-Audio-Modell)",
+    "stt":     "STT-Runtime (whisper.cpp + Modell)",
+    "mikrofon": "Mikrofon / PortAudio",
+    "espeak":  "espeak-ng (erzeugt synthetische Testsprache)",
+    "lfm-audio-runtime": "LFM-Audio-Runtime für Batch-Verarbeitung",
+}
+
+
+def probe_capabilities(base_url="http://localhost:8080"):
+    """Prüft VOR dem Testlauf, was auf dieser Maschine überhaupt vorhanden ist."""
+    import json as _json
+    import shutil
+    import urllib.request
+
+    caps = {k: False for k in CAPABILITY_LABEL}
+
+    def get(path):
+        try:
+            with urllib.request.urlopen(base_url + path, timeout=5) as r:
+                return _json.load(r)
+        except Exception:
+            return None
+
+    health = get("/health")
+    if health:
+        caps["backend"] = True
+        caps["llm"] = (health.get("primary_runtime", {}).get("status") == "online"
+                       and any(m.get("available") for m in health.get("models", [])))
+    audio = get("/audio/status")
+    if audio:
+        caps["stt"] = audio.get("status") == "online"
+    tts = get("/audio/tts/status")
+    if tts:
+        caps["tts"] = bool(tts.get("available"))
+    caps["lfm-audio-runtime"] = caps["tts"]
+    caps["espeak"] = shutil.which("espeak-ng") is not None
+    try:
+        import sounddevice as sd
+        caps["mikrofon"] = any(d.get("max_input_channels", 0) > 0 for d in sd.query_devices())
+    except Exception:
+        caps["mikrofon"] = False
+    return caps
 
 # Textmuster, die eine fehlende Voraussetzung belegen (nicht einen echten Fehler).
 MISSING_PREREQ = [
@@ -123,7 +170,7 @@ def first_failures(output, limit=3):
     return lines[:limit]
 
 
-def run_suite(filename, timeout):
+def run_suite(filename, timeout, missing=()):
     path = os.path.join(TESTS_DIR, filename)
     env = dict(os.environ)
     env["GUIALITA_TEST_NESTED"] = "0"   # keine verschachtelten Subprozesse
@@ -138,7 +185,11 @@ def run_suite(filename, timeout):
                 "wall_seconds": round(time.perf_counter() - t0, 1),
                 "ran": 0, "passed": 0, "failures": 0, "errors": 0, "skipped": 0,
                 "failed_tests": []}
-    status, reason = classify(rc, output)
+    if missing:
+        status = NOT_EXECUTED
+        reason = "fehlt: " + ", ".join(CAPABILITY_LABEL.get(m, m) for m in missing)
+    else:
+        status, reason = classify(rc, output)
     stats = parse_counts(output)
     return {"status": status, "reason": reason,
             "wall_seconds": round(time.perf_counter() - t0, 1),
@@ -179,6 +230,14 @@ def main():
         print()
         return 0
 
+    capabilities = probe_capabilities()
+    print("\n" + "=" * 78)
+    print("  Vorhandene Fähigkeiten auf dieser Maschine")
+    print("=" * 78)
+    for key, label in CAPABILITY_LABEL.items():
+        mark = "vorhanden" if capabilities[key] else "FEHLT"
+        print(f"  {mark:<11}{label}")
+
     print("\n" + "=" * 78)
     print("  Ausführung")
     print("=" * 78)
@@ -186,7 +245,8 @@ def main():
     results = {}
     for filename, label, prereq, timeout in suites:
         print(f"  {filename:<32} … ", end="", flush=True)
-        r = run_suite(filename, timeout)
+        missing = [c for c in prereq if not capabilities.get(c, False)]
+        r = run_suite(filename, timeout, missing)
         results[filename] = {**r, "label": label, "requires": prereq}
         mark = {PASS: "PASS", FAIL: "FAIL", NOT_EXECUTED: "NOT EXECUTED"}[r["status"]]
         detail = f"{r['passed']}/{r['ran']}" if r["ran"] else "—"
@@ -226,6 +286,7 @@ def main():
 
     report = {
         "test_run": {
+            "capabilities": capabilities,
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "runner": "scripts/run_all_tests.py",
             "nested_suite_calls": "disabled (GUIALITA_TEST_NESTED=0)",

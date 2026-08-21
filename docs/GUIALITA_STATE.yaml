@@ -295,13 +295,62 @@ capabilities_absent:
     status: NOT_STARTED
     note: "kein Streaming, kein Full-Duplex, kein Barge-in (Voice Forensics V1)"
 
+# ------------------------------------------------------------
+# Freeze-Regel — Nachweis statt Erlaubnis (seit 2026-08-21)
+# ------------------------------------------------------------
+freeze_policy:
+  version: 2
+  supersedes: "Freeze v1: eingefrorene Dateien durften ohne explizite Autorisierung gar nicht geändert werden"
+  rationale: >
+    Freeze v1 fror nicht Verhalten ein, sondern Verbesserung. Er entstand, als
+    es keine verlässliche Testgrundlage gab — Einfrieren ersetzte das Prüfen.
+    Mit scripts/run_all_tests.py (136 Tests, 9 Suiten, jede genau einmal) ist
+    Prüfen möglich. Damit tritt an die Stelle einer Erlaubnis-Zeremonie ein
+    Nachweis. Zusätzlich fror v1 Code ein, dessen Qualität nie geprüft war
+    (Feature-Hashing als "semantisches" Retrieval, 53 fest eingetragene
+    Begriffe als "Entity-Extraktion") und machte ihn damit unkorrigierbar.
+
+  rule: >
+    Eine als frozen markierte Schicht DARF geändert werden, wenn alle drei
+    Bedingungen erfüllt sind. Fehlt eine davon, gilt der Freeze weiter.
+  conditions:
+    - "1. Die zugehörige Testsuite lief VOR der Änderung PASS (Nachweis im Commit)"
+    - "2. Sie läuft NACH der Änderung PASS, mit gleicher oder höherer Testzahl"
+    - "3. Der Commit begründet die Änderung und nennt beide Testläufe"
+  not_covered: >
+    NOT_EXECUTED zählt nicht als grüner Lauf. Kann eine Suite in der aktuellen
+    Umgebung nicht laufen, bleibt die Schicht für diese Umgebung eingefroren.
+
+  still_requires_explicit_authorization:
+    - "Austausch einer Runtime (STT/TTS/LLM) — dafür ist eine neue ADR nötig"
+    - "Änderung des Datenbankschemas (Migration betrifft bestehende Daten)"
+    - "Löschen oder Abschwächen bestehender Tests"
+    - "alles unter prohibitions"
+
+  behaviour_contract_is_authoritative: >
+    Maßgeblich ist der Verhaltensvertrag in docs/BASELINES/REGRESSION_CONTRACT.md
+    ("POST /chat liefert weiterhin eine Antwort"), nicht die Unantastbarkeit
+    einzelner Dateien. Geschützt wird das System, nicht der Quelltext.
+
+  frozen_layers:
+    phase_1a: {files: [scripts/audio_capture.py], suite: tests/test_capture.py}
+    phase_1b: {files: [scripts/process_audio.py], suite: tests/test_process_audio.py}
+    memory_session: {files: [backend/memory/store.py, backend/chat_service.py], suite: tests/test_memory.py}
+    memory_retrieval: {files: [backend/memory/embed.py, backend/memory/retrieval.py], suite: tests/test_memory_retrieval.py}
+    memory_graph: {files: [backend/memory/extractor.py], suite: tests/test_memory_graph.py}
+
+  known_debt_now_addressable:
+    - "retrieval.py lädt bei jeder Anfrage die komplette memories-Tabelle in den RAM (O(n) je Chat-Turn)"
+    - "embed.py ist Feature-Hashing, nicht semantisch — nur wörtliche Überlappung wird gefunden"
+    - "extractor.py erkennt ausschließlich 53 fest eingetragene Begriffe"
+
 prohibitions:
   - "Phase 1C ohne explizite Autorisierung implementieren"
   - "MUSCAL-Adapter, Vision, Desktop-/Browser-Control, WebSocket, Multi-Agent"
   - "Cloud-STT/TTS oder Cloud-Inferenz"
   - "LFM2.5-Audio stillschweigend ersetzen (TTS-Rolle ist gesetzt)"
   - "whisper.cpp ohne neue ADR ersetzen (STT-Rolle ist per ADR-001 gesetzt)"
-  - "eingefrorene Phasen (1A, 1B, Memory-Schichten) ohne Autorisierung ändern"
+  - "eingefrorene Phasen ändern, ohne die freeze_policy zu erfüllen (grüner Lauf vorher UND nachher)"
   - "Ollama stoppen oder umkonfigurieren"
 
 known_issues:
