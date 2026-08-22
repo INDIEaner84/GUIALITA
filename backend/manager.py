@@ -21,16 +21,16 @@ class ModelManager:
         self.ollama = OllamaAdapter(base_url=self._config.get("server", {}).get("ollama_url", "http://127.0.0.1:11434"))
         self.default_model = self._config.get("default_model", "granite-3b")
         stt_cfg = self._config.get("stt", {})
-        model_path = stt_cfg.get("model_path", "models/whisper/ggml-base.bin")
-        if not os.path.isabs(model_path):
-            model_path = os.path.join(BASE_DIR, model_path)
-        self.stt = WhisperSTTAdapter(
-            cli_path=stt_cfg.get("cli_path", "/home/hz/whisper.cpp/build/bin/whisper-cli"),
-            model_path=model_path,
-        )
+        model_path = self._resolve_path(stt_cfg.get("model_path", "models/whisper/ggml-base.bin"))
+        cli_path = self._resolve_path(stt_cfg.get(
+            "cli_path", os.environ.get("GUIALITA_WHISPER_CLI", "/home/hz/whisper.cpp/build/bin/whisper-cli")
+        ))
+        self.stt = WhisperSTTAdapter(cli_path=cli_path, model_path=model_path)
         self.stt_config = stt_cfg
 
     def _resolve_path(self, path: str) -> str:
+        """Resolve relative paths and environment variables from config."""
+        path = os.path.expanduser(os.path.expandvars(str(path)))
         if not os.path.isabs(path):
             path = os.path.join(BASE_DIR, path)
         return os.path.abspath(path)
@@ -54,9 +54,7 @@ class ModelManager:
     def list_models(self) -> list:
         result = []
         for mid, cfg in self.get_models().items():
-            path = cfg.get("path", "")
-            if not os.path.isabs(path):
-                path = os.path.join(BASE_DIR, path)
+            path = self._resolve_path(cfg.get("path", ""))
             exists = os.path.exists(path)
             result.append({
                 "id": mid,

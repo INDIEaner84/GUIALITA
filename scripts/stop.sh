@@ -5,7 +5,8 @@
 
 set -u
 
-GUIALITA_DIR="/media/hz/_Ext_Seagat/GUIALITA"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GUIALITA_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$GUIALITA_DIR/scripts/logs"
 PID_FILE="$LOG_DIR/guialita.pid"
 

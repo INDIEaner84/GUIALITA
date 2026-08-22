@@ -1,48 +1,36 @@
-# GUIALITA — Phase Status Matrix
+# GUIALITA — Phase Status View
 
-Kompakte autoritative Phasenmatrix. Quelle: `docs/GUIALITA_STATE.yaml`.
+Verbindliche Quelle: `docs/GUIALITA_STATE.yaml`. Diese Datei ist eine lesbare
+Ansicht und darf nicht als separate Statusquelle behandelt werden.
 
-| Phase | Status      | Scope                                    | Authorization                   |
-| ----- | ----------- | ---------------------------------------- | ------------------------------- |
-| 0     | PASS        | foundation                               | complete                        |
-| 0.5   | PASS        | LFM connection/runtime baseline          | complete                        |
-| 1A    | PASS        | microphone → validated WAV               | complete                        |
-| 1B    | PASS        | WAV → LFM2.5 Audio → transcription       | complete                        |
-| MEM   | PASS        | SQLite Session + Message + ChatService   | complete                        |
-| MEM-R | PASS        | Deterministic Feature-Hashing Retrieval  | complete                        |
-| MEM-G | PASS        | Persistent Graph (Entities + Relations)  | complete                        |
-| GRAPH-V | PASS      | SVG Graph Visualization                  | complete                        |
-| TTS     | PASS      | LFM2.5-Audio TTS Output                  | complete                        |
-| 1C    | NOT_STARTED | Voice → LFM → TTS                        | explicit authorization required |
-| 2     | UNKNOWN     | do not infer                             | not authorized                  |
+| Bereich | Status | Hinweis |
+|---|---|---|
+| Phase 0 / 0.5 | PASS | lokales LLM-Backend und Runtime-Basis |
+| Phase 1A | PASS | Mikrofon → validierte WAV |
+| Phase 1B | PASS | WAV → STT → Transkript |
+| Phase 1C | PASS | Voice → STT → Chat → TTS, Batch-Pipeline |
+| Memory Session | PASS | SQLite-Sessions und Nachrichten |
+| Memory Retrieval | PASS | deterministisches Retrieval |
+| Memory Graph | PASS | Entities und Relations |
+| Graph Visualization | PASS | SVG-Ansicht |
+| TTS | PASS | LFM2.5-Audio TTS, Runtime-abhängig |
+| M4 Testharness | PASS | 46 isolierte Tests |
+| M5 Audit/Export | PASS | JSONL, JSON- und Markdown-Export |
+| M5 Performance/Diagnostics | IN_PROGRESS | Benchmark vorhanden, Runtime-Messung offen |
+| Vision | NOT_STARTED | nur Prototypen, nicht kanonisch aktiviert |
+| Desktop Control | NOT_STARTED | Sicherheitsdesign erforderlich |
 
-## Invarianzen
+## Aktuelle Einschränkungen
 
-```text
-PHASE 0         = PASS
-PHASE 0.5       = PASS
-PHASE 1A        = PASS
-PHASE 1B        = PASS
-MEMORY          = PASS
-MEMORY_RETR     = PASS
-MEMORY_GRAPH    = PASS
-GRAPH_VIS       = PASS
-TTS             = PASS
-PHASE 1C        = NOT_STARTED
+- Vollständige Runtime-Tests benötigen lokale Modelle und Runtimes.
+- Echte Mikrofon-/Lautsprecher-Abnahme benötigt den Zielrechner.
+- Deutsche STT-Qualität und Voice-Latenz sind noch nicht vollständig abgenommen.
+- Vision und Desktop-Control führen noch keine kanonischen Aktionen aus.
 
-CURRENT_BASELINE  = GUIALITA-TTS-V1-PASS
-PHASE_1C_AUTH     = REQUIRED
-HARD_STOP         = TRUE
-```
+## Statusdefinitionen
 
-Phase 2 ist durch keine Repository-Evidenz definiert und wird deshalb als
-`UNKNOWN` geführt (nicht als `FROZEN`). Es wird nicht spekuliert, was Phase 2
-umfassen würde.
-
-## Hinweise
-
-- `NOT_STARTED` bei 1C bedeutet: Es existiert KEINE Phase-1C-Implementierung,
-  keine Voice→LFM→TTS-Schleife.
-- Die Existenz von WAV-Dateien in `audio/inbox/` oder `audio/processed/` ist
-  KEINE Autorisierung für Phase 1C.
-- HARD STOP gilt, bis eine explizite Freigabe erteilt wird.
+- `PASS`: implementiert und durch vorhandene Evidenz beziehungsweise isolierte
+  Tests belegt.
+- `IN_PROGRESS`: Teile implementiert, weitere Messung oder Stabilisierung offen.
+- `NOT_STARTED`: nicht in die kanonische Anwendung integriert.
+- `BLOCKED`: Umsetzung oder Verifikation wartet auf eine externe Voraussetzung.

@@ -1,12 +1,12 @@
 # GUIALITA — Canonical Project State (machine-readable)
-# Aktualisiert: 2026-08-18, nach PHASE 1B PASS
+# Aktualisiert: 2026-08-22, nach M5 Audit/Export
 # Quellen: docs/PHASE_1A_AUDIO_CAPTURE.md, docs/phase-1a-audio-capture.yaml,
 #          docs/PHASE_1B_WAV_LFM_AUDIO.md, docs/phase-1b-wav-lfm-audio.yaml
 
 project:
   name: GUIALITA
   status: PASS
-  baseline: GUIALITA-VOICE-ACTIVATION-V1-PASS
+  baseline: GUIALITA-M5-AUDIT-EXPORT-PASS
 
 phases:
   phase_0:
@@ -19,9 +19,10 @@ phases:
     status: PASS
     authorization: COMPLETE
   phase_1c:
-    status: NOT_STARTED
-    authorization: REQUIRED
-    frozen: true
+    status: PASS
+    authorization: COMPLETE
+    frozen: false
+    scope: "Voice → STT → Chat → TTS batch pipeline"
   memory_session:
     status: PASS
     authorization: COMPLETE
@@ -42,10 +43,25 @@ phases:
     authorization: COMPLETE
 
 current_phase:
-  completed: VOICE_ACTIVATION_V1
-  next_authorized_phase: NONE
-  next_candidate: STREAMING oder VAD_UPGRADE
-  hard_stop: true
+  completed: M5_AUDIT_EXPORT
+  next_authorized_phase: M5_PERFORMANCE_AND_DIAGNOSTICS
+  next_candidate: WARM_RUNTIME oder STREAMING
+  hard_stop: false
+
+milestones:
+  m4_testharness:
+    status: PASS
+    unit_tests: 42
+  m5_audit_export:
+    status: PASS
+    artifacts:
+      - backend/audit.py
+      - scripts/benchmark.py
+      - /sessions/{session_id}/export
+      - /sessions/{session_id}/export.md
+      - /audit/events
+  m5_performance:
+    status: IN_PROGRESS
 
 audio_capture:
   microphone: "ZOOM H2n USB default"
