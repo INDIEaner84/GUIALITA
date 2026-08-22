@@ -36,8 +36,11 @@ class TTSService:
         self._available = None
 
     def is_available(self) -> bool:
-        if self._available is None:
-            self._available = (
+        # A failed startup check must not stay stale: model files may be mounted
+        # or downloaded after the API process has started. Recheck while absent,
+        # cache only the successful result.
+        if self._available is not True:
+            available = (
                 os.path.isfile(CLI_BINARY)
                 and os.access(CLI_BINARY, os.X_OK)
                 and os.path.isfile(DEFAULT_MODEL)
@@ -45,11 +48,10 @@ class TTSService:
                 and os.path.isfile(DEFAULT_VOCODER)
                 and os.path.isfile(DEFAULT_TOKENIZER)
             )
-            if self._available:
+            if available and self._available is not True:
                 logger.info("TTS Service bereit: LFM2.5-Audio via %s", CLI_BINARY)
-            else:
-                logger.warning("TTS Service nicht verfügbar")
-        return self._available
+            self._available = available
+        return bool(self._available)
 
     def health(self) -> dict:
         return {
@@ -61,15 +63,17 @@ class TTSService:
         }
 
     def synthesize(self, text: str, voice: str = None) -> dict:
-        if not self.is_available():
-            raise RuntimeError("TTS Service nicht verfügbar")
-
+        # Validate caller input before checking optional local model assets. This
+        # keeps API semantics deterministic even on machines without TTS files.
         if not text or not text.strip():
             raise ValueError("Text darf nicht leer sein")
 
         voice = voice or DEFAULT_VOICE
         if voice not in VOICES:
             raise ValueError(f"Ungültige Voice: {voice}. Verfügbar: {list(VOICES.keys())}")
+
+        if not self.is_available():
+            raise RuntimeError("TTS Service nicht verfügbar")
 
         text = text.strip()
         system_prompt = VOICES[voice]

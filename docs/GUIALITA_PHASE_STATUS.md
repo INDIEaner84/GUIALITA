@@ -1,6 +1,6 @@
 # GUIALITA — Phase Status Matrix
 
-Kompakte autoritative Phasenmatrix. Quelle: `docs/GUIALITA_STATE.yaml`.
+Kompakte lesbare Phasenmatrix. Verbindliche Quelle: `docs/GUIALITA_STATE.yaml`; diese Datei ist nur eine Ansicht.
 
 | Phase | Status      | Scope                                    | Authorization                   |
 | ----- | ----------- | ---------------------------------------- | ------------------------------- |

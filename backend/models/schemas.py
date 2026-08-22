@@ -1,6 +1,6 @@
 from typing import Optional, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ChatRequest(BaseModel):
@@ -88,11 +88,19 @@ class AudioTranscribeResponse(BaseModel):
     error: str = ""
 
 
+class AudioChatRequest(BaseModel):
+    """JSON payload for the complete audio → STT → chat pipeline."""
+    audio: str = Field(min_length=1, max_length=35_000_000)
+    duration_s: float = Field(default=0.0, ge=0.0, le=180.0)
+    model: Optional[str] = None
+    session_id: Optional[str] = None
+
+
 class AudioChatResponse(BaseModel):
     status: str
-    transcript: str
-    response: str
-    model: str
+    transcript: str = ""
+    response: str = ""
+    model: str = ""
     language: str = "auto"
     recording_s: float = 0.0
     transcription_ms: float = 0.0
@@ -100,4 +108,8 @@ class AudioChatResponse(BaseModel):
     total_ms: float = 0.0
     stt_runtime: str = ""
     chat_runtime: str = ""
+    session_id: str = ""
+    message_id: str = ""
+    history_used: int = 0
     error: str = ""
+    details: str = ""

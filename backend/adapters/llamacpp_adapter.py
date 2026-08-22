@@ -53,6 +53,7 @@ class LlamaCppAdapter(ModelAdapter):
 
     def _resolve_path(self, path: str) -> str:
         base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        path = os.path.expanduser(os.path.expandvars(str(path)))
         if not os.path.isabs(path):
             path = os.path.join(base, path)
         return os.path.abspath(path)

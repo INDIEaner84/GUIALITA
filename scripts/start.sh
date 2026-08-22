@@ -5,8 +5,9 @@
 
 set -u
 
-GUIALITA_DIR="/media/hz/_Ext_Seagat/GUIALITA"
-VENV="/home/hz/.guialita-venv"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GUIALITA_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+VENV="${GUIALITA_VENV:-$GUIALITA_DIR/.venv}"
 PORT=8080
 LOG_DIR="$GUIALITA_DIR/scripts/logs"
 BACKEND_LOG="$LOG_DIR/backend.log"
