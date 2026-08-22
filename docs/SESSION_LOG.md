@@ -155,6 +155,15 @@ Commit: `8bb9500 Make voice pipeline session-aware and improve local setup`
   Validierung.
 - Unit-Layer nach Installation der lokalen Venv: **46 passed**.
 
+## 2026-08-22 — Statusdokumentation synchronisiert
+
+- `GUIALITA_PHASE_STATUS.md` als reine Ansicht neu aufgebaut.
+- Kanonischer State auf den tatsächlich implementierten Phase-1C-Batch-Flow
+  aktualisiert: Voice → STT → Chat → TTS = PASS.
+- Vision und Desktop-Control bleiben ausdrücklich nicht kanonisch aktiviert.
+- M4/M5 und die verbleibenden Hardware-/Runtime-Blocker sind jetzt einheitlich
+  ausgewiesen.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.

@@ -19,9 +19,10 @@ phases:
     status: PASS
     authorization: COMPLETE
   phase_1c:
-    status: NOT_STARTED
-    authorization: REQUIRED
-    frozen: true
+    status: PASS
+    authorization: COMPLETE
+    frozen: false
+    scope: "Voice → STT → Chat → TTS batch pipeline"
   memory_session:
     status: PASS
     authorization: COMPLETE
