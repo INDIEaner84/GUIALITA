@@ -24,7 +24,8 @@ Schritte.
 | Deterministischer Benchmark | implementiert: `scripts/benchmark.py` |
 | Memory-Embedding-Baseline | median 0,02 ms in Sandbox |
 | Technisches Audit | aktiv: `data/audit.jsonl` (Metadaten standardmäßig) |
-| Unit-/Contract-Testbasis | PASS — 42 Tests über `scripts/test.py` |
+| Unit-/Contract-Testbasis | PASS — 46 Tests über `scripts/test.py` |
+| Mock-Chat-/Memory-Pipeline | PASS — Session, History, Persistenz |
 | Session-Export | implementiert: `/sessions/{id}/export` |
 | Audit-Abfrage | implementiert: `/audit/events` |
 | Markdown-Sessionexport | implementiert: `/sessions/{id}/export.md` |

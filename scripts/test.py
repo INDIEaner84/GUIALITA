@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PYTEST = [sys.executable, "-m", "pytest", "-q", "--tb=short"]
 
 UNIT = [
+    "tests/test_chat_service.py",
     "tests/test_audit.py",
     "tests/test_audio_contract.py",
     "tests/test_memory.py::TestStoreUnit",

@@ -147,6 +147,14 @@ Commit: `8bb9500 Make voice pipeline session-aware and improve local setup`
 - Aggregiert Ereignisanzahl, Erfolge, Fehler und mittlere STT-/Chat-/Gesamtzeiten.
 - Summary-Test ergänzt; Unit-Layer auf **43 passed** erweitert.
 
+## 2026-08-22 — Mock-End-to-End-Pipeline
+
+- `tests/test_chat_service.py` ergänzt.
+- Fake-LLM testet den vollständigen ChatService-Flow ohne Modelle:
+  Session-Erzeugung, Nachrichtenpersistenz, History-Weitergabe und Session-
+  Validierung.
+- Unit-Layer nach Installation der lokalen Venv: **46 passed**.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.
