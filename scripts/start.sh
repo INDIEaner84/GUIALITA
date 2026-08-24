@@ -5,10 +5,31 @@
 
 set -u
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GUIALITA_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Repository-Wurzel: aus GUIALITA_ROOT, sonst relativ zu diesem Skript.
+GUIALITA_DIR="${GUIALITA_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# Lokale Konfiguration laden (setup_local.sh erzeugt sie).
+# Bereits gesetzte Umgebungsvariablen behalten Vorrang.
+if [ -f "$GUIALITA_DIR/.env" ]; then
+    while IFS='=' read -r key value; do
+        case "$key" in ''|\#*) continue ;; esac
+        key="$(echo "$key" | tr -d ' ')"
+        [ -z "$key" ] && continue
+        if [ -z "$(eval "echo \${$key:-}")" ]; then
+            export "$key=$value"
+        fi
+    done < "$GUIALITA_DIR/.env"
+fi
+
+# Python-Umgebung: GUIALITA_VENV, sonst .venv im Repo, sonst System-Python.
 VENV="${GUIALITA_VENV:-$GUIALITA_DIR/.venv}"
 PORT=8080
+RESTART=0
+for arg in "$@"; do
+    case "$arg" in
+        --restart) RESTART=1 ;;
+        -h|--help) echo "Nutzung: start.sh [--restart]"; exit 0 ;;
+    esac
+done
 LOG_DIR="$GUIALITA_DIR/scripts/logs"
 BACKEND_LOG="$LOG_DIR/backend.log"
 PID_FILE="$LOG_DIR/guialita.pid"
@@ -23,23 +44,36 @@ error() { echo "[GUIALITA][FEHLER] $*" >&2; }
 info "=== GUIALITA Start ==="
 
 # ---------- 1. Umgebung pruefen ----------
-if [ ! -x "$VENV/bin/python" ]; then
-    error "Python-Venv fehlt: $VENV"
-    error "Erstelle es: python3 -m venv $VENV"
-    error "und: $VENV/bin/pip install llama-cpp-python fastapi uvicorn pydantic pyyaml httpx"
+if [ -x "$VENV/bin/python" ]; then
+    PYTHON="$VENV/bin/python"
+elif command -v python3 > /dev/null 2>&1; then
+    info "Kein Venv unter $VENV - nutze python3 aus \$PATH"
+    PYTHON="$(command -v python3)"
+else
+    error "Weder Venv ($VENV) noch python3 gefunden."
+    error "Erstelle eine Umgebung: python3 -m venv \"$VENV\""
+    error "und installiere: \"$VENV/bin/pip\" install -r \"$GUIALITA_DIR/requirements.txt\""
     exit 1
 fi
 
 # ---------- 2. Modell vorhanden? ----------
-MODEL_FILE="$GUIALITA_DIR/models/lfm-vision-3b/LFM2.5-VL-3B-Q4_K_M.gguf"
+MODEL_FILE="${GUIALITA_MODEL_ROOT:-$GUIALITA_DIR/models}/lfm-vision-3b/LFM2.5-VL-3B-Q4_K_M.gguf"
 if [ ! -f "$MODEL_FILE" ]; then
     info "Hinweis: LFM-Vision-Modell fehlt noch - wird im Hintergrund geladen"
 fi
 
 # ---------- 3. Backend starten (nur wenn nicht bereits aktiv) ----------
-if curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
+if curl -sf "$HEALTH_URL" > /dev/null 2>&1 && [ "$RESTART" -eq 0 ]; then
     info "Backend laeuft bereits auf $HEALTH_URL"
+    info "ACHTUNG: Ein laufendes Backend nutzt den Code vom Startzeitpunkt."
+    info "Nach 'git pull' oder Konfigurationsaenderungen neu starten:"
+    info "  bash scripts/start.sh --restart"
 else
+    if [ "$RESTART" -eq 1 ] && curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
+        info "Neustart angefordert - beende laufendes Backend"
+        bash "$GUIALITA_DIR/scripts/stop.sh" > /dev/null 2>&1 || true
+        sleep 2
+    fi
     if [ -f "$PID_FILE" ]; then
         OLD_PID=$(cat "$PID_FILE")
         if kill -0 "$OLD_PID" 2>/dev/null; then
@@ -52,7 +86,7 @@ else
 
     info "Starte Backend auf Port $PORT ..."
     cd "$GUIALITA_DIR"
-    nohup "$VENV/bin/python" backend/main.py >> "$BACKEND_LOG" 2>&1 &
+    nohup "$PYTHON" backend/main.py >> "$BACKEND_LOG" 2>&1 &
     BACKEND_PID=$!
     echo "$BACKEND_PID" > "$PID_FILE"
     info "Backend-PID: $BACKEND_PID (Log: $BACKEND_LOG)"
@@ -78,7 +112,7 @@ fi
 info "Backend online: $HEALTH_URL"
 
 # ---------- 5. Primaermodell pruefen ----------
-PRIMARY=$("$VENV/bin/python" - "$PORT" <<'PYEOF'
+PRIMARY=$("$PYTHON" - "$PORT" <<'PYEOF'
 import json, sys, urllib.request
 port = sys.argv[1]
 try:

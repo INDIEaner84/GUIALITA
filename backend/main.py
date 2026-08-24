@@ -55,6 +55,39 @@ def list_models():
     return {"models": manager.list_models()}
 
 
+@app.get("/diagnostics")
+def diagnostics():
+    """Aufgelöste Pfade, Runtime-Verfügbarkeit und Fähigkeiten.
+
+    Gedacht für die Fehlersuche direkt nach der Einrichtung: zeigt, welche
+    Umgebungsvariablen gegriffen haben, welche Dateien tatsächlich existieren
+    und welche Fähigkeit deshalb fehlt. Reine Leseoperation.
+    """
+    d = manager.diagnostics()
+    d["tts"] = {
+        "runtime": "llama-liquid-audio-cli",
+        "available": tts_service.is_available(),
+        **{k: v for k, v in tts_service.health().items() if k != "available"},
+    }
+    d["voice_activation"] = voice_activation.status()
+    d["memory"] = {"database": store.db_path, "exists": os.path.exists(store.db_path)}
+
+    capabilities = {
+        "backend": True,
+        "llm": d["llm"]["installed"] and d["llm"]["models_available"] > 0,
+        "stt": d["stt"]["available"],
+        "tts": d["tts"]["available"],
+    }
+    d["capabilities"] = capabilities
+    missing = [k for k, v in capabilities.items() if not v]
+    d["missing_capabilities"] = missing
+    d["ready_for_voice_turn"] = not missing
+    if missing:
+        d["hint"] = ("Fehlende Pfade prüfen und ggf. korrigieren: "
+                     "bash scripts/setup_local.sh")
+    return d
+
+
 @app.get("/audio/status")
 def audio_status():
     return AudioStatusResponse(

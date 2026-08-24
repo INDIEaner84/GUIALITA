@@ -1,36 +1,40 @@
-# GUIALITA — Phase Status View
+# GUIALITA — Phasenstatus
 
-Verbindliche Quelle: `docs/GUIALITA_STATE.yaml`. Diese Datei ist eine lesbare
-Ansicht und darf nicht als separate Statusquelle behandelt werden.
+Diese Datei enthält bewusst **keine** Statustabelle mehr.
 
-| Bereich | Status | Hinweis |
-|---|---|---|
-| Phase 0 / 0.5 | PASS | lokales LLM-Backend und Runtime-Basis |
-| Phase 1A | PASS | Mikrofon → validierte WAV |
-| Phase 1B | PASS | WAV → STT → Transkript |
-| Phase 1C | PASS | Voice → STT → Chat → TTS, Batch-Pipeline |
-| Memory Session | PASS | SQLite-Sessions und Nachrichten |
-| Memory Retrieval | PASS | deterministisches Retrieval |
-| Memory Graph | PASS | Entities und Relations |
-| Graph Visualization | PASS | SVG-Ansicht |
-| TTS | PASS | LFM2.5-Audio TTS, Runtime-abhängig |
-| M4 Testharness | PASS | 46 isolierte Tests |
-| M5 Audit/Export | PASS | JSONL, JSON- und Markdown-Export |
-| M5 Performance/Diagnostics | IN_PROGRESS | Benchmark vorhanden, Runtime-Messung offen |
-| Vision | NOT_STARTED | nur Prototypen, nicht kanonisch aktiviert |
-| Desktop Control | NOT_STARTED | Sicherheitsdesign erforderlich |
+Der Phasenstatus stand früher gleichzeitig hier, in
+`docs/GUIALITA_SESSION_BOOTSTRAP.md` und in `docs/GUIALITA_STATE.yaml` — mit
+widersprüchlichen Baseline-Angaben als Folge. Eine Kopie, die nicht
+mitgepflegt wird, ist schlimmer als keine Kopie.
 
-## Aktuelle Einschränkungen
+## Maßgeblich
 
-- Vollständige Runtime-Tests benötigen lokale Modelle und Runtimes.
-- Echte Mikrofon-/Lautsprecher-Abnahme benötigt den Zielrechner.
-- Deutsche STT-Qualität und Voice-Latenz sind noch nicht vollständig abgenommen.
-- Vision und Desktop-Control führen noch keine kanonischen Aktionen aus.
+**→ [`docs/GUIALITA_STATE.yaml`](GUIALITA_STATE.yaml)**
 
-## Statusdefinitionen
+Dort stehen: Phasen, Status, Baseline, offene Gates, Verbote, bekannte
+Probleme — maschinenlesbar und an genau einer Stelle.
 
-- `PASS`: implementiert und durch vorhandene Evidenz beziehungsweise isolierte
-  Tests belegt.
-- `IN_PROGRESS`: Teile implementiert, weitere Messung oder Stabilisierung offen.
-- `NOT_STARTED`: nicht in die kanonische Anwendung integriert.
-- `BLOCKED`: Umsetzung oder Verifikation wartet auf eine externe Voraussetzung.
+```bash
+# Schnellüberblick
+grep -E "^\s+(title|status|gate_status):" docs/GUIALITA_STATE.yaml
+```
+
+## Statusvokabular
+
+Die Bedeutung von `PASS`, `OBSERVED`, `DOCUMENTED`, `OPEN`, `UNKNOWN`,
+`NOT_STARTED`, `BLOCKED`, `IN_PROGRESS` und
+`PERFORMANCE_OPTIMIZATION_REQUIRED` ist in `GUIALITA_STATE.yaml` unter
+`status_vocabulary` definiert. `UNKNOWN` wird nicht zu `PASS` umgedeutet.
+
+## Historische Belege
+
+Die Phase-Reports (`docs/PHASE_*.md`, `docs/phase-*.yaml`) und Baselines
+(`docs/BASELINES/`) sind **unveränderliche historische Belege**. Sie geben den
+Zustand ihres Entstehungszeitpunkts wieder — auch dann, wenn sie eine
+inzwischen überholte Baseline nennen. Sie werden nicht nachträglich
+korrigiert.
+
+## Architekturentscheidungen
+
+`docs/adr/` — beginnend mit
+[ADR-001: whisper.cpp als STT-Runtime](adr/ADR-001-stt-whisper-cpp.md).

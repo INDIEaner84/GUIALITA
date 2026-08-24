@@ -24,20 +24,55 @@ VOICE_REGRESSION      = FAIL if voice activation broken
 AUDIO_REGRESSION      = FAIL if GET /audio/status broken
 OLLAMA_REGRESSION     = FAIL if Ollama PID changed or config modified
 DEPENDENCY_REGRESSION = FAIL if new heavy dependencies added
+DIAGNOSTICS_REGRESSION = FAIL if GET /diagnostics broken or paths unresolved
 ```
 
 ## Test Suites (must all PASS)
 
-| Suite | Tests | Covers |
-|-------|-------|--------|
-| `tests/test_tts.py` | 16 | TTS generation + chat/session/memory/graph regression |
-| `tests/test_voice_activation.py` | 37 | Voice activation state machine + STT/Chat/TTS integration |
-| `tests/test_memory.py` | 16 | Session + memory store |
-| `tests/test_api.py` | 18 | All API endpoints |
-| `tests/test_graph_visualization.py` | 8 | Graph API |
-| `tests/test_memory_graph.py` | 12 | Entity/relation store + graph retrieval |
-| `tests/test_memory_retrieval.py` | 5 | Embedding + retrieval |
-| **Total** | **108** | **Full regression** |
+| Suite | Tests | Voraussetzung | Deckt ab |
+|---|---|---|---|
+| `tests/test_voice_activation.py` | 37 | keine | Voice-Zustandsautomat, STT/Chat/TTS-Anbindung |
+| `tests/test_api.py` | 23 | Backend | alle HTTP-Endpunkte inkl. /diagnostics |
+| `tests/test_memory_retrieval.py` | 17 | Backend | Embedding + Retrieval |
+| `tests/test_memory.py` | 16 | Backend | Session + Memory-Store |
+| `tests/test_tts.py` | 16 | Backend, TTS-Runtime | TTS-Erzeugung + Regression |
+| `tests/test_memory_graph.py` | 14 | Backend | Entities/Relationen + Graph-Abfrage |
+| `tests/test_graph_visualization.py` | 13 | Backend | Graph-API + Frontend |
+| `tests/test_process_audio.py` | 5 | LFM-Audio-Runtime, espeak-ng | WAV → Transkript (Batch) |
+| `tests/test_capture.py` | 0 | Mikrofon, espeak-ng | Aufnahme (Prozedurskript, keine `test_*`-Methoden) |
+| **Summe** | **141** | | **vollständige Regression** |
+
+### Korrektur der Testzahl (2026-08-21)
+
+Dieser Vertrag nannte zuvor **108** Tests, andere Dokumente 79, 71 bzw. 145.
+Keine dieser Zahlen stimmte. Ursache: Drei Suiten starteten andere Suiten als
+Subprozesse. Beim Lauf aller neun Suiten wurde `test_memory.py` **achtmal** und
+`test_api.py` **sechsmal** ausgeführt — **35 Suite-Läufe statt 9**. Dieselben
+Tests wurden mehrfach gezählt.
+
+Die tatsächliche Zahl ist **141 Testfunktionen in 9 Suiten** (136 bei der Korrektur, +5 durch die Tests für `/diagnostics`).
+
+Verbindlicher Lauf:
+
+```bash
+python3 scripts/run_all_tests.py          # jede Suite genau einmal
+python3 scripts/run_all_tests.py --list   # Inventar ohne Ausführung
+```
+
+Verschachtelte Suite-Aufrufe sind standardmäßig deaktiviert
+(`GUIALITA_TEST_NESTED=1` stellt das alte Verhalten wieder her).
+
+### Bewertungsregel
+
+```text
+PASS          Suite vollständig bestanden
+FAIL          echte Fehlschläge
+NOT_EXECUTED  Voraussetzung fehlte (Backend, Mikrofon, GPU, Modelle, Runtime)
+```
+
+Tests aus einer `NOT_EXECUTED`-Suite dürfen **nicht** als bestanden gezählt
+werden — auch dann nicht, wenn einzelne von ihnen durchliefen. Der Runner weist
+sie deshalb getrennt aus.
 
 ## Subsystem Invariants
 

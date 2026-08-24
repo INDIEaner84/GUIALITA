@@ -4,7 +4,8 @@
 
 set -u
 
-GUIALITA_DIR="/media/hz/_Ext_Seagat/GUIALITA"
+# Repository-Wurzel: aus GUIALITA_ROOT, sonst relativ zu diesem Skript.
+GUIALITA_DIR="${GUIALITA_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 APPS_DIR="$HOME/.local/share/applications"
 DESKTOP_FILE="$APPS_DIR/GUIALITA.desktop"
 

@@ -3,6 +3,9 @@
 # Excludes models, runtime binaries, large artifacts
 # ============================================
 
+# === Modellverzeichnis komplett (enthält u. a. Symlinks aus setup_local.sh) ===
+/models/
+
 # === Model files (GGUF, BIN) ===
 models/**/*.gguf
 models/**/*.bin
@@ -90,3 +93,6 @@ logs/
 
 # === LFM Reference ===
 LFM\ REFERENZ\ GIT/
+
+# === Lokale Pfadkonfiguration (maschinenspezifisch) ===
+.env

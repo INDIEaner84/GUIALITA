@@ -1,185 +1,427 @@
-# GUIALITA — Canonical Project State (machine-readable)
-# Aktualisiert: 2026-08-22, nach M5 Audit/Export
-# Quellen: docs/PHASE_1A_AUDIO_CAPTURE.md, docs/phase-1a-audio-capture.yaml,
-#          docs/PHASE_1B_WAV_LFM_AUDIO.md, docs/phase-1b-wav-lfm-audio.yaml
+# GUIALITA — Kanonischer Projektzustand
+#
+# ============================================================
+# DIES IST DIE EINZIGE QUELLE DER WAHRHEIT FÜR PHASENSTATUS.
+# ============================================================
+#
+# Andere Dokumente (Phase-Reports, Baselines, Bootstrap) sind historische
+# Belege bzw. Erläuterungen. Wenn sie dieser Datei widersprechen, gilt diese
+# Datei. Phase-Reports werden nach ihrer Erstellung NICHT mehr geändert.
+#
+# Aktualisiert: 2026-08-22 (Merge arena/01a01e70 — Portabilität, Diagnose,
+#               Test-Härtung; kombiniert mit M5 Audit/Export von main)
+
+meta:
+  schema_version: 2
+  updated: 2026-08-22
+  authoritative: true
+  supersedes:
+    - docs/GUIALITA_PHASE_STATUS.md      # ab jetzt nur noch generierte Ansicht
+    - docs/GUIALITA_SESSION_BOOTSTRAP.md # ab jetzt ohne Statusangaben
+
+# ------------------------------------------------------------
+# Statusvokabular — bewusst unterschieden, nicht vermischen
+# ------------------------------------------------------------
+status_vocabulary:
+  PASS: "funktional getestet, Ergebnis dokumentiert"
+  OBSERVED: "gemessen/beobachtet, kein Gate bestanden oder nicht abgeschlossen"
+  DOCUMENTED: "beschrieben und entschieden, kein Testgate anwendbar"
+  OPEN: "Untersuchung abgeschlossen, abgeleitete Maßnahme offen"
+  UNKNOWN: "keine Evidenz im Repository — es wird nicht spekuliert"
+  NOT_STARTED: "keine Implementierung vorhanden"
+  BLOCKED: "wartet auf explizite Autorisierung"
+  IN_PROGRESS: "Teile implementiert, weitere Messung oder Stabilisierung offen"
+  PERFORMANCE_OPTIMIZATION_REQUIRED: "funktional korrekt, Latenz inakzeptabel"
 
 project:
   name: GUIALITA
-  status: PASS
-  baseline: GUIALITA-M5-AUDIT-EXPORT-PASS
+  role: "lokale kognitive/Audio-Runtime (HTTP)"
+  overall_status: PASS
+  current_baseline: GUIALITA-CUDA-VMM-REPAIR-PASS
+  baseline_history:
+    - GUIALITA-PHASE-0-PASS
+    - GUIALITA-TTS-V1-PASS
+    - GUIALITA-VOICE-ACTIVATION-V1-PASS
+    - GUIALITA-CUDA-VMM-REPAIR-PASS   # aktuell
+    - GUIALITA-M5-AUDIT-EXPORT-PASS  # Audit/Export (Hauptzweig)
+  baseline_note: >
+    Frühere Dokumente nennen abweichende "current baselines"
+    (TTS-V1 bzw. VOICE-ACTIVATION-V1). Diese Angaben sind historisch
+    korrekt für ihren Entstehungszeitpunkt, aber nicht mehr aktuell.
+    Maßgeblich ist ausschließlich project.current_baseline.
 
+# ------------------------------------------------------------
+# Phasen
+# ------------------------------------------------------------
 phases:
+
   phase_0:
+    title: "Browser → lokales LFM → Browser"
     status: PASS
+    date: 2026-08-18
+    evidence: [docs/PHASE_0_BASELINE.md, docs/phase-0-baseline.yaml, docs/INTEGRITY_MARKER.txt]
+
   phase_0_5:
+    title: "LFM-Verbindung / Runtime-Baseline"
     status: PASS
+    evidence: [docs/INTEGRITY_MARKER.txt]
+
   phase_1a:
+    title: "Mikrofon → validiertes WAV"
     status: PASS
+    frozen: true
+    evidence: [docs/PHASE_1A_AUDIO_CAPTURE.md, docs/phase-1a-audio-capture.yaml]
+
   phase_1b:
+    title: "WAV → LFM2.5-Audio → Transkript (Batch)"
     status: PASS
-    authorization: COMPLETE
-  phase_1c:
-    status: PASS
-    authorization: COMPLETE
-    frozen: false
-    scope: "Voice → STT → Chat → TTS batch pipeline"
+    frozen: true
+    note: "Batch-ASR-Pfad. NICHT der STT-Pfad der Live-Sprachschleife — siehe stt_architecture."
+    evidence: [docs/PHASE_1B_WAV_LFM_AUDIO.md, docs/phase-1b-wav-lfm-audio.yaml]
+
   memory_session:
+    title: "SQLite Session + Message + ChatService"
     status: PASS
-    authorization: COMPLETE
+    frozen: true
+    evidence: [docs/PHASE_MEMORY_SESSION_RESULT.md, docs/phase-memory-session.yaml]
+
   memory_retrieval:
+    title: "Deterministisches Feature-Hashing-Retrieval (512-D)"
     status: PASS
-    authorization: COMPLETE
+    frozen: true
+    evidence: [docs/PHASE_MEMORY_RETRIEVAL_RESULT.md, docs/phase-memory-retrieval.yaml]
+
   memory_graph:
+    title: "Persistenter Graph (Entities + Relations)"
     status: PASS
-    authorization: COMPLETE
+    frozen: true
+    evidence: [docs/PHASE_MEMORY_GRAPH_FOUNDATION_RESULT.md, docs/phase-memory-graph-foundation.yaml]
+
   graph_visualization:
+    title: "SVG-Graph-Visualisierung"
     status: PASS
-    authorization: COMPLETE
+    evidence: [docs/PHASE_GRAPH_VISUALIZATION_RESULT.md, docs/phase-graph-visualization.yaml]
+
   tts:
+    title: "LFM2.5-Audio TTS-Ausgabe"
+    status: PASS
+    evidence: [docs/PHASE_TTS_RESULT.md, docs/phase-tts.yaml, docs/BASELINES/GUIALITA-TTS-V1-PASS.md]
+
+  voice_activation_v1:
+    title: "Sprachaktivierung (RMS-VAD-Zustandsautomat)"
+    status: PASS
+    date: 2026-08-19
+    evidence: [docs/PHASE_VOICE_ACTIVATION_RESULT.md, docs/phase-voice-activation.yaml]
+
+  voice_forensics_v1:
+    title: "Latenz-/Ursachenanalyse der Sprachpipeline"
+    investigation_status: PASS       # Untersuchung abgeschlossen
+    gate_status: OPEN                # abgeleitete Maßnahme NICHT abgeschlossen
+    decision: PERFORMANCE_OPTIMIZATION_REQUIRED
+    date: 2026-08-19
+    measured_warm_turn_ms: 48000
+    measured_stt_ms: 14000
+    measured_llm_warm_ms: 23000
+    closes_when: "Sprach-Turn-Latenz nach dem CUDA-Repair neu gemessen und dokumentiert"
+    measurement_tool: scripts/measure_voice_turn.py
+    measurement_output: docs/measurements/voice-turn-<zeitstempel>.yaml
+    note: >
+      Der CUDA-VMM-Repair adressiert die primäre Ursache (LLM auf CPU).
+      Es existiert jedoch KEINE Nachmessung der vollständigen Sprachpipeline
+      nach dem Repair. Das Performance-Gate bleibt deshalb OPEN.
+    evidence: [docs/PHASE_VOICE_FORENSICS_V1_RESULT.md, docs/phase-voice-forensics-v1.yaml]
+
+  cuda_vmm_repair:
+    title: "Wiederherstellung der CUDA-GPU-Beschleunigung"
+    status: PASS
+    date: 2026-08-20
+    root_causes:
+      - "CUDA-VMM-Crash (cuMemAddressReserve)"
+      - "Xid-31-MMU-Fault / Treiberzustand"
+      - "geteiltes Debian-CUDA-Toolkit ohne /usr/local/cuda"
+    fix: "Neubau mit GGML_CUDA_NO_VMM=ON, Reboot, CUDA-Symlinks"
+    gpu_layers_offloaded: "41/41"
+    measured_llm_warm_ms: 6000       # isolierte LLM-Inferenz, nicht ganzer Turn
+    regression: "79/79 PASS"
+    evidence: [docs/PHASE_CUDA_VMM_REPAIR_RESULT.md, docs/phase-cuda-vmm-repair.yaml]
+
+  phase_4e_hardening:
+    title: "Doku-Konsolidierung, Dependencies, Pfad-Portabilität"
+    status: PASS
+    date: 2026-08-20
+    scope: "keine Laufzeitfunktion geändert; nur Konfiguration/Portabilität/Doku"
+    evidence: [docs/PHASE_4E_HARDENING_RESULT.md]
+
+  phase_1c:
+    title: "Voice → LFM → TTS (durchgehende Schleife)"
     status: PASS
     authorization: COMPLETE
-  voice_activation:
-    status: PASS
-    authorization: COMPLETE
+    frozen: true
+    note: >
+      Die funktionale Kette existiert in backend/audio/voice_activation.py
+      (_process_turn_inner: WAV → STT → Chat → TTS → Playback). Das
+      Performance-Gate (voice_forensics_v1) bleibt jedoch offen, bis die
+      volle Warmlauf-Latenz nach CUDA-Repair gemessen ist.
+    scope: "Voice → STT → Chat → TTS Schleife, gemessen über scripts/measure_voice_turn.py"
 
-current_phase:
-  completed: M5_AUDIT_EXPORT
-  next_authorized_phase: M5_PERFORMANCE_AND_DIAGNOSTICS
-  next_candidate: WARM_RUNTIME oder STREAMING
-  hard_stop: false
+  phase_2_vision:
+    title: "LFM Vision / Perzeption"
+    status: UNKNOWN
+    note: "Modelle vorhanden, aber nicht angebunden. Umfang nicht definiert — es wird nicht spekuliert."
 
-milestones:
+  # ----------------------------------------------------------
+  # Meilensteine aus dem M5-Audit/Export-Zweig (Hauptzweig)
+  # ----------------------------------------------------------
   m4_testharness:
+    title: "M4 — Testharness"
     status: PASS
     unit_tests: 42
+    evidence: [tests/, pytest.ini]
+
   m5_audit_export:
+    title: "M5 — Audit/Export"
     status: PASS
     artifacts:
       - backend/audit.py
       - scripts/benchmark.py
+      - scripts/doctor.py
+      - scripts/test.py
       - /sessions/{session_id}/export
       - /sessions/{session_id}/export.md
       - /audit/events
-  m5_performance:
+    evidence: [tests/test_audit.py, tests/test_chat_service.py, tests/test_audio_contract.py]
+
+  m5_performance_diagnostics:
+    title: "M5 — Performance/Diagnostics"
     status: IN_PROGRESS
+    note: >
+      Benchmark, Doctor-Skript und /diagnostics sind vorhanden; die
+      vollständige Warmlauf-Laufzeitmessung der Sprachpipeline
+      (voice_forensics_v1) steht noch aus.
 
-audio_capture:
-  microphone: "ZOOM H2n USB default"
-  sample_rate_hz: 16000
-  channels: 1
-  format: pcm_s16le
-  vad: RMS_LEVEL_THRESHOLD
-  speech_threshold_dbfs: -35
-  silence_threshold_dbfs: -45
-  min_speech_ms: 400
-  silence_timeout_ms: 700
-  max_recording_ms: 30000
-  pre_roll_ms: 400
+# ------------------------------------------------------------
+# Architekturentscheidungen
+# ------------------------------------------------------------
+stt_architecture:
+  status: DOCUMENTED
+  decision: ADR-001
+  adr: docs/adr/ADR-001-stt-whisper-cpp.md
+  live_stt_runtime: "whisper.cpp (whisper-cli, ggml-base.bin, Sprache de)"
+  cognition_runtime: "Granite 4.1 3B via llama-cpp-python (CUDA)"
+  tts_runtime: "LFM2.5-Audio-1.5B via llama-liquid-audio-cli (CPU)"
+  batch_asr_runtime: "LFM2.5-Audio-1.5B (scripts/process_audio.py, Phase 1B)"
+  vision_runtime: "LFM2.5-VL — FUTURE, nicht angebunden"
+  explicit: >
+    LFM2.5-Audio stellt NICHT den deutschen Live-STT-Pfad bereit.
+    Diese Rolle hat whisper.cpp. Die Entscheidung ist bewusst und begründet.
 
-lfm_audio:
-  model: "LFM2.5-Audio-1.5B (Liquid AI)"
-  architecture: lfm2
-  runtime: llama-liquid-audio-cli (official runner, CPU-only)
-  runtime_location: runtime/liquid-audio/
-  llama_cpp_python_audio_api: NONE
-  real_audio_inference: PASS
-  transcription: PASS
-  confidence: null
-  processor: scripts/process_audio.py
+# ------------------------------------------------------------
+# Reproduzierbarkeit / Portabilität
+# ------------------------------------------------------------
+reproducibility:
+  status: PASS
+  dependency_declaration: requirements.txt
+  path_configuration: .env.example
+  path_module: backend/paths.py
+  hardcoded_absolute_paths_in_code: 0
+  environment_variables:
+    - GUIALITA_ROOT
+    - GUIALITA_MODEL_ROOT
+    - GUIALITA_EXTERNAL_MODEL_ROOT
+    - GUIALITA_RUNTIME_ROOT
+    - GUIALITA_DATA_ROOT
+    - GUIALITA_WHISPER_CLI
+    - GUIALITA_VENV
+  external_non_pip_dependencies:
+    - "whisper.cpp (whisper-cli)"
+    - "llama-liquid-audio-cli"
+    - "Ollama (optional, SHARED SERVICE, Port 11434)"
+    - "Modelldateien (*.gguf, *.bin)"
+  note: >
+    Historische Phase-Reports enthalten weiterhin maschinenspezifische
+    Pfade. Das ist beabsichtigt: sie sind forensische Belege und werden
+    nicht nachträglich verändert.
 
-validation:
-  wav_validation: PASS
-  multiple_recordings: PASS
-  recordings_validated: 5
-  api_regression: PASS
-  gpu_regression: PASS
-  chat_regression: PASS
-  desktop_regression: PASS
-  phase_1b_tests: "13/13 PASS"
+# ------------------------------------------------------------
+# Tests — belastbare Zahlen statt widersprüchlicher Angaben
+# ------------------------------------------------------------
+testing:
+  status: DOCUMENTED
+  runner: scripts/run_all_tests.py
+  test_functions_total: 141
+  suites: 9
+  previous_claims: [108, 79, 71, 145]
+  previous_claims_note: >
+    Alle vier Angaben waren falsch. Drei Suiten starteten andere Suiten als
+    Subprozesse; beim Lauf aller neun Suiten wurde test_memory.py achtmal und
+    test_api.py sechsmal ausgeführt (35 Suite-Läufe statt 9), wodurch dieselben
+    Tests mehrfach gezählt wurden.
+  nested_suite_calls: "standardmäßig deaktiviert (GUIALITA_TEST_NESTED=1 reaktiviert)"
+  grading_rule: >
+    Tests aus einer NOT_EXECUTED-Suite zählen nicht als bestanden, auch wenn
+    einzelne durchliefen. Der Runner weist sie getrennt aus.
+  suite_inventory:
+    test_voice_activation.py: {tests: 37, requires: none}
+    test_api.py: {tests: 23, requires: "backend, llm"}
+    test_memory_retrieval.py: {tests: 17, requires: "backend, llm"}
+    test_memory.py: {tests: 16, requires: "backend, llm"}
+    test_tts.py: {tests: 16, requires: "backend, tts-runtime"}
+    test_memory_graph.py: {tests: 14, requires: "backend, llm"}
+    test_graph_visualization.py: {tests: 13, requires: backend}
+    test_process_audio.py: {tests: 5, requires: "lfm-audio-runtime, espeak-ng"}
+    test_capture.py: {tests: 0, requires: "mikrofon, espeak-ng"}
+  additional_mainline_suites:
+    # Hinzugekommen über den M5-Audit/Export-Zweig (Hauptzweig).
+    test_audit.py: {requires: backend}
+    test_chat_service.py: {requires: backend, llm}
+    test_audio_contract.py: {requires: backend}
+  capability_probe: >
+    scripts/run_all_tests.py prüft vor dem Lauf über /health, /audio/status und
+    /audio/tts/status, welche Fähigkeiten vorhanden sind. Fehlt eine benötigte,
+    wird die Suite als NOT_EXECUTED mit benannter Ursache geführt statt als FAIL.
+  ci_capable: false
+  ci_note: >
+    Sieben von neun Suiten benötigen ein laufendes Backend, Modelle, GPU,
+    Mikrofon oder espeak-ng. Nur test_voice_activation.py läuft ohne
+    Voraussetzungen.
 
-resources:
-  cpu_monitor_percent: 1.9
-  ram_mb_range: "50.8-52.7"
-  vram_mib_before: 4708
-  vram_mib_during: 4708
-  vram_mib_after: 4708
+# ------------------------------------------------------------
+# Verifizierte Umgebung (Referenzmaschine)
+# ------------------------------------------------------------
+environment:
+  os: "Linux Mint 22.3 (XFCE)"
+  cpu: "Intel Core i7-3930K (6C/12T)"
+  ram_gb: 32
+  gpu: "NVIDIA GeForce GTX 1080 Ti, 11 GB"
+  cuda_driver: "12.2"
+  cuda_toolkit: "12.0.140"
+  llama_cpp_python: "0.3.35 (GGML_CUDA=ON, GGML_CUDA_NO_VMM=ON)"
+  backend: "FastAPI, Port 8080"
+  ollama: "SHARED SERVICE, Port 11434 — wird nie gestoppt oder verändert"
+  note: >
+    Dies ist die Maschine, auf der die PASS-Ergebnisse erzielt wurden.
+    Sie ist eine Referenz, keine Voraussetzung — die Pfadkonfiguration ist
+    seit Phase 4E portabel.
 
-phase_1a_artifacts:
-  - scripts/audio_capture.py
-  - tests/test_capture.py
-  - docs/PHASE_1A_AUDIO_CAPTURE.md
-  - docs/phase-1a-audio-capture.yaml
-  - audio/inbox/
+# ------------------------------------------------------------
+# Aktueller Stand und Grenzen
+# ------------------------------------------------------------
+current:
+  last_completed_phase: m5_audit_export
+  next_authorized_phase: NONE
+  hard_stop: true
+  recommended_next: voice_latency_remeasurement
+  recommended_next_tool: "scripts/measure_voice_turn.py --record --turns 3"
+  recommended_next_reason: >
+    Einziges offenes Gate. Schließt voice_forensics_v1 ab und liefert die
+    Messgrundlage für jede weitere Optimierungsentscheidung.
+  next_candidate: "WARM_RUNTIME oder STREAMING (nach geschlossenem Gate)"
 
-phase_1b_artifacts:
-  - scripts/process_audio.py
-  - tests/test_process_audio.py
-  - runtime/liquid-audio/
-  - docs/PHASE_1B_WAV_LFM_AUDIO.md
-  - docs/phase-1b-wav-lfm-audio.yaml
-  - audio/processed/
+# ------------------------------------------------------------
+# Nicht vorhandene Fähigkeiten — explizit, um Fehlannahmen zu vermeiden
+# ------------------------------------------------------------
+capabilities_absent:
+  desktop_control:
+    status: NOT_STARTED
+    note: >
+      In GUIALITA existiert KEIN Desktop-Code: kein Endpunkt, kein Screenshot,
+      keine Maus-/Tastatursteuerung. Der TypeScript-Prototyp unter
+      PROTOTYPEN/local-multimodal-desktop-agent/ ist NICHT angebunden
+      (eigene Konfiguration, eigene Datenbank), hat controlEnabled=false als
+      Default, keine installierten Abhängigkeiten und fehlerhafte
+      xdotool-Aufrufe (mouseclick/mousescroll existieren nicht) — er wurde nie
+      gegen einen echten X-Server ausgeführt. Einordnung: PROTOTYPEN/README.md
+  vision:
+    status: NOT_STARTED
+    note: >
+      LFM2.5-VL-Modelle sind in config/models.yaml konfiguriert, aber kein
+      Code im Backend verwendet sie. Konfiguration ist keine Fähigkeit.
+  browser_control:
+    status: NOT_STARTED
+  streaming_stt_tts:
+    status: NOT_STARTED
+    note: "kein Streaming, kein Full-Duplex, kein Barge-in (Voice Forensics V1)"
 
-memory_session_artifacts:
-  - backend/memory/schema.py
-  - backend/memory/store.py
-  - backend/chat_service.py
-  - config/memory.yaml
-  - tests/test_memory.py
-  - docs/PHASE_MEMORY_SESSION_RESULT.md
-  - docs/phase-memory-session.yaml
-  - data/guialita.db (runtime)
+# ------------------------------------------------------------
+# Freeze-Regel — Nachweis statt Erlaubnis (seit 2026-08-21)
+# ------------------------------------------------------------
+freeze_policy:
+  version: 2
+  supersedes: "Freeze v1: eingefrorene Dateien durften ohne explizite Autorisierung gar nicht geändert werden"
+  rationale: >
+    Freeze v1 fror nicht Verhalten ein, sondern Verbesserung. Er entstand, als
+    es keine verlässliche Testgrundlage gab — Einfrieren ersetzte das Prüfen.
+    Mit scripts/run_all_tests.py (136 Tests, 9 Suiten, jede genau einmal) ist
+    Prüfen möglich. Damit tritt an die Stelle einer Erlaubnis-Zeremonie ein
+    Nachweis. Zusätzlich fror v1 Code ein, dessen Qualität nie geprüft war
+    (Feature-Hashing als "semantisches" Retrieval, 53 fest eingetragene
+    Begriffe als "Entity-Extraktion") und machte ihn damit unkorrigierbar.
 
-memory_retrieval_artifacts:
-  - backend/memory/embed.py
-  - backend/memory/retrieval.py
-  - tests/test_memory_retrieval.py
-  - docs/PHASE_MEMORY_RETRIEVAL_RESULT.md
-  - docs/phase-memory-retrieval.yaml
+  rule: >
+    Eine als frozen markierte Schicht DARF geändert werden, wenn alle drei
+    Bedingungen erfüllt sind. Fehlt eine davon, gilt der Freeze weiter.
+  conditions:
+    - "1. Die zugehörige Testsuite lief VOR der Änderung PASS (Nachweis im Commit)"
+    - "2. Sie läuft NACH der Änderung PASS, mit gleicher oder höherer Testzahl"
+    - "3. Der Commit begründet die Änderung und nennt beide Testläufe"
+  not_covered: >
+    NOT_EXECUTED zählt nicht als grüner Lauf. Kann eine Suite in der aktuellen
+    Umgebung nicht laufen, bleibt die Schicht für diese Umgebung eingefroren.
 
-memory_graph_artifacts:
-  - backend/memory/extractor.py
-  - tests/test_memory_graph.py
-  - docs/PHASE_MEMORY_GRAPH_FOUNDATION_RESULT.md
-  - docs/phase-memory-graph-foundation.yaml
+  still_requires_explicit_authorization:
+    - "Austausch einer Runtime (STT/TTS/LLM) — dafür ist eine neue ADR nötig"
+    - "Änderung des Datenbankschemas (Migration betrifft bestehende Daten)"
+    - "Löschen oder Abschwächen bestehender Tests"
+    - "alles unter prohibitions"
 
-graph_visualization_artifacts:
-  - frontend/graph.html
-  - tests/test_graph_visualization.py
-  - docs/PHASE_GRAPH_VISUALIZATION_RESULT.md
-  - docs/phase-graph-visualization.yaml
+  behaviour_contract_is_authoritative: >
+    Maßgeblich ist der Verhaltensvertrag in docs/BASELINES/REGRESSION_CONTRACT.md
+    ("POST /chat liefert weiterhin eine Antwort"), nicht die Unantastbarkeit
+    einzelner Dateien. Geschützt wird das System, nicht der Quelltext.
 
-tts_artifacts:
-  - backend/audio/tts.py
-  - tests/test_tts.py
-  - docs/PHASE_TTS_RESULT.md
-  - docs/phase-tts.yaml
+  frozen_layers:
+    phase_1a: {files: [scripts/audio_capture.py], suite: tests/test_capture.py}
+    phase_1b: {files: [scripts/process_audio.py], suite: tests/test_process_audio.py}
+    memory_session: {files: [backend/memory/store.py, backend/chat_service.py], suite: tests/test_memory.py}
+    memory_retrieval: {files: [backend/memory/embed.py, backend/memory/retrieval.py], suite: tests/test_memory_retrieval.py}
+    memory_graph: {files: [backend/memory/extractor.py], suite: tests/test_memory_graph.py}
 
-voice_activation_artifacts:
-  - config/voice.yaml
-  - backend/audio/voice_activation.py
-  - tests/test_voice_activation.py
-  - docs/PHASE_VOICE_ACTIVATION_RESULT.md
-  - docs/phase-voice-activation.yaml
-
-known_issues:
-  - "empty pulse buffers may display -300 dBFS (numeric noise, harmless)"
-  - "nohup stdout buffering affects live debug visibility (use python -u)"
-  - "audio device index is system dependent (use --list-devices)"
-  - "LFM2.5-Audio ASR is EN-focused; German espeak input transcribes coarsely"
-  - "llama-liquid-audio-cli is WIP (llama.cpp PR #18641), CPU-only"
-
-known_risks:
-  - "thresholds may require adjustment in noisy environments"
-  - "PulseAudio source suspension may delay first trigger"
-  - "shared default microphone may delay stream opening"
-  - "runner builds may change on HuggingFace (WIP status)"
-  - "disk nearly full (32 GB free); no further large downloads without approval"
+  known_debt_now_addressable:
+    - "retrieval.py lädt bei jeder Anfrage die komplette memories-Tabelle in den RAM (O(n) je Chat-Turn)"
+    - "embed.py ist Feature-Hashing, nicht semantisch — nur wörtliche Überlappung wird gefunden"
+    - "extractor.py erkennt ausschließlich 53 fest eingetragene Begriffe"
 
 prohibitions:
-  phase_1c_auto_start: true
-  modify_phase_1a_without_authorization: true
-  modify_phase_1b_without_authorization: true
+  - "Phase 1C ohne explizite Autorisierung implementieren"
+  - "MUSCAL-Adapter, Vision, Desktop-/Browser-Control, WebSocket, Multi-Agent"
+  - "Cloud-STT/TTS oder Cloud-Inferenz"
+  - "LFM2.5-Audio stillschweigend ersetzen (TTS-Rolle ist gesetzt)"
+  - "whisper.cpp ohne neue ADR ersetzen (STT-Rolle ist per ADR-001 gesetzt)"
+  - "eingefrorene Phasen ändern, ohne die freeze_policy zu erfüllen (grüner Lauf vorher UND nachher)"
+  - "Ollama stoppen oder umkonfigurieren"
 
-last_verified_result:
-  phase: VOICE_ACTIVATION_V1
-  status: PASS
+known_issues:
+  - "Sprach-Turn ~48 s warm (vor CUDA-Repair gemessen; Nachmessung offen)"
+  - "whisper.cpp CPU-gebunden, ~14 s pro Transkription"
+  - "Granite nutzt Konversationshistorie auf Deutsch nicht immer zuverlässig (Modellverhalten)"
+  - "llama-liquid-audio-cli ist WIP (llama.cpp PR #18641), CPU-only"
+  - "LFM2.5-Audio-ASR ist EN-fokussiert (Grund für ADR-001)"
+  - "Selbst-Feedback-Schutz (Post-TTS-Cooldown) implementiert, Playback-Test unvollständig"
+  - "leere Pulse-Buffer können -300 dBFS anzeigen (numerisches Rauschen, harmlos)"
+  - "Audio-Device-Index ist systemabhängig (--list-devices)"
+
+known_risks:
+  - "8 von 9 Testsuiten benötigen Backend, Modelle, GPU, Mikrofon oder espeak-ng — nicht CI-fähig"
+  - "VAD-Schwellen sind umgebungsabhängig"
+  - "Runner-Builds auf HuggingFace können sich ändern (WIP)"
+  - "Plattenplatz begrenzt — keine großen Downloads ohne Freigabe"
+
+# ------------------------------------------------------------
+# Zielarchitektur (NICHT implementiert)
+# ------------------------------------------------------------
+future_target:
+  status: PLANNED
+  note: >
+    MUSCAL soll die übergeordnete Agenten-/Orchestrierungsschicht werden,
+    GUIALITA bleibt die lokale Runtime darunter. Nichts davon ist
+    implementiert; es ist ausschließlich Zielbild, kein Zustand.

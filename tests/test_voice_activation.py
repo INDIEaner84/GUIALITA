@@ -11,6 +11,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 from backend.audio.voice_activation import VoiceActivationService, VoiceState, db_from_amplitude
 
 
@@ -450,7 +452,7 @@ class TestConfigLoading(unittest.TestCase):
         self.assertIn("pre_roll_ms", va._config)
 
     def test_custom_config(self):
-        va = VoiceActivationService(config_path="/media/hz/_Ext_Seagat/GUIALITA/config/voice.yaml")
+        va = VoiceActivationService(config_path=os.path.join(PROJECT_DIR, "config", "voice.yaml"))
         self.assertEqual(va._config["sample_rate"], 16000)
 
 
