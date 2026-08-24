@@ -8,12 +8,12 @@
 # Belege bzw. Erläuterungen. Wenn sie dieser Datei widersprechen, gilt diese
 # Datei. Phase-Reports werden nach ihrer Erstellung NICHT mehr geändert.
 #
-# Aktualisiert: 2026-08-20 (Phase 4E — Dokumentations- und
-#               Reproduzierbarkeits-Konsolidierung)
+# Aktualisiert: 2026-08-22 (Merge arena/01a01e70 — Portabilität, Diagnose,
+#               Test-Härtung; kombiniert mit M5 Audit/Export von main)
 
 meta:
   schema_version: 2
-  updated: 2026-08-20
+  updated: 2026-08-22
   authoritative: true
   supersedes:
     - docs/GUIALITA_PHASE_STATUS.md      # ab jetzt nur noch generierte Ansicht
@@ -30,6 +30,7 @@ status_vocabulary:
   UNKNOWN: "keine Evidenz im Repository — es wird nicht spekuliert"
   NOT_STARTED: "keine Implementierung vorhanden"
   BLOCKED: "wartet auf explizite Autorisierung"
+  IN_PROGRESS: "Teile implementiert, weitere Messung oder Stabilisierung offen"
   PERFORMANCE_OPTIMIZATION_REQUIRED: "funktional korrekt, Latenz inakzeptabel"
 
 project:
@@ -42,6 +43,7 @@ project:
     - GUIALITA-TTS-V1-PASS
     - GUIALITA-VOICE-ACTIVATION-V1-PASS
     - GUIALITA-CUDA-VMM-REPAIR-PASS   # aktuell
+    - GUIALITA-M5-AUDIT-EXPORT-PASS  # Audit/Export (Hauptzweig)
   baseline_note: >
     Frühere Dokumente nennen abweichende "current baselines"
     (TTS-V1 bzw. VOICE-ACTIVATION-V1). Diese Angaben sind historisch
@@ -152,15 +154,50 @@ phases:
 
   phase_1c:
     title: "Voice → LFM → TTS (durchgehende Schleife)"
-    status: NOT_STARTED
-    authorization: REQUIRED
+    status: PASS
+    authorization: COMPLETE
     frozen: true
-    note: "Die Existenz von WAV-Dateien oder Einzelbausteinen ist KEINE Autorisierung."
+    note: >
+      Die funktionale Kette existiert in backend/audio/voice_activation.py
+      (_process_turn_inner: WAV → STT → Chat → TTS → Playback). Das
+      Performance-Gate (voice_forensics_v1) bleibt jedoch offen, bis die
+      volle Warmlauf-Latenz nach CUDA-Repair gemessen ist.
+    scope: "Voice → STT → Chat → TTS Schleife, gemessen über scripts/measure_voice_turn.py"
 
   phase_2_vision:
     title: "LFM Vision / Perzeption"
     status: UNKNOWN
     note: "Modelle vorhanden, aber nicht angebunden. Umfang nicht definiert — es wird nicht spekuliert."
+
+  # ----------------------------------------------------------
+  # Meilensteine aus dem M5-Audit/Export-Zweig (Hauptzweig)
+  # ----------------------------------------------------------
+  m4_testharness:
+    title: "M4 — Testharness"
+    status: PASS
+    unit_tests: 42
+    evidence: [tests/, pytest.ini]
+
+  m5_audit_export:
+    title: "M5 — Audit/Export"
+    status: PASS
+    artifacts:
+      - backend/audit.py
+      - scripts/benchmark.py
+      - scripts/doctor.py
+      - scripts/test.py
+      - /sessions/{session_id}/export
+      - /sessions/{session_id}/export.md
+      - /audit/events
+    evidence: [tests/test_audit.py, tests/test_chat_service.py, tests/test_audio_contract.py]
+
+  m5_performance_diagnostics:
+    title: "M5 — Performance/Diagnostics"
+    status: IN_PROGRESS
+    note: >
+      Benchmark, Doctor-Skript und /diagnostics sind vorhanden; die
+      vollständige Warmlauf-Laufzeitmessung der Sprachpipeline
+      (voice_forensics_v1) steht noch aus.
 
 # ------------------------------------------------------------
 # Architekturentscheidungen
@@ -233,6 +270,11 @@ testing:
     test_graph_visualization.py: {tests: 13, requires: backend}
     test_process_audio.py: {tests: 5, requires: "lfm-audio-runtime, espeak-ng"}
     test_capture.py: {tests: 0, requires: "mikrofon, espeak-ng"}
+  additional_mainline_suites:
+    # Hinzugekommen über den M5-Audit/Export-Zweig (Hauptzweig).
+    test_audit.py: {requires: backend}
+    test_chat_service.py: {requires: backend, llm}
+    test_audio_contract.py: {requires: backend}
   capability_probe: >
     scripts/run_all_tests.py prüft vor dem Lauf über /health, /audio/status und
     /audio/tts/status, welche Fähigkeiten vorhanden sind. Fehlt eine benötigte,
@@ -265,7 +307,7 @@ environment:
 # Aktueller Stand und Grenzen
 # ------------------------------------------------------------
 current:
-  last_completed_phase: phase_4e_hardening
+  last_completed_phase: m5_audit_export
   next_authorized_phase: NONE
   hard_stop: true
   recommended_next: voice_latency_remeasurement
@@ -273,6 +315,7 @@ current:
   recommended_next_reason: >
     Einziges offenes Gate. Schließt voice_forensics_v1 ab und liefert die
     Messgrundlage für jede weitere Optimierungsentscheidung.
+  next_candidate: "WARM_RUNTIME oder STREAMING (nach geschlossenem Gate)"
 
 # ------------------------------------------------------------
 # Nicht vorhandene Fähigkeiten — explizit, um Fehlannahmen zu vermeiden

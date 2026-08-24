@@ -1,4 +1,36 @@
-# GUIALITA - Local LFM Assistant (Phase 0)
+# GUIALITA — Lokaler LFM-Sprachassistent
+
+**Browser → Local LFM → Memory → Sprache**
+
+> Aktueller Stand: Voice Activation V1, persistente Sessions, Memory-Retrieval,
+> Knowledge-Graph, Whisper-STT und LFM-TTS sind implementiert. Die kanonische
+> Pipeline ist lokal und hardwareabhängig; Vision/Desktop-Control liegen noch
+> als separate Prototypen unter `PROTOTYPEN/` vor.
+
+## Schnellstart
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python scripts/doctor.py
+GUIALITA_VENV="$PWD/.venv" bash scripts/start.sh
+```
+
+Die Modellpfade in `config/models.yaml` müssen zur lokalen Installation passen.
+Absolute Pfade können durch Umgebungsvariablen ersetzt werden, zum Beispiel:
+
+```yaml
+path: ${GUIALITA_MODEL_ROOT}/granite/3b/model.gguf
+```
+
+Dann vor dem Start setzen:
+
+```bash
+export GUIALITA_MODEL_ROOT=/pfad/zu/models
+export GUIALITA_WHISPER_CLI=/pfad/zu/whisper-cli
+```
+
+`doctor.py` ist schreibgeschützt und verändert weder Ollama noch Modelle.
 
 **Browser → Local LFM → Browser**
 

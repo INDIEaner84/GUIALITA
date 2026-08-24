@@ -5,7 +5,7 @@ import time
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,9 +14,10 @@ sys.path.insert(0, BASE_DIR)
 from backend.manager import ModelManager
 from backend.memory.store import MemoryStore
 from backend.chat_service import ChatService
-from backend.models.schemas import (ChatRequest, ChatResponse, ErrorResponse, AudioStatusResponse, AudioTranscribeResponse, AudioChatResponse, SessionResponse, MemoryStatusResponse, MemorySearchResponse, MemorySearchResult)
+from backend.models.schemas import (ChatRequest, ChatResponse, ErrorResponse, AudioStatusResponse, AudioTranscribeResponse, AudioChatRequest, AudioChatResponse, SessionResponse, MemoryStatusResponse, MemorySearchResponse, MemorySearchResult)
 from backend.memory.retrieval import GraphRetriever
 from backend.utils.latency import Latency
+from backend.audit import record as audit_event, read_events, summary as audit_summary
 from backend.audio.tts import tts_service
 from backend.audio.voice_activation import VoiceActivationService
 
@@ -188,60 +189,97 @@ async def audio_transcribe(request: Request):
 
 @app.post("/audio/chat")
 async def audio_chat(request: Request):
-    """Audio → STT → bestehende Chat-Pipeline in einem Schritt.
-
-    Erwartet JSON: { "audio": "<base64-wav>", "duration_s": 3.2, "model": "granite-3b" }
-    """
-    try:
-        data = await request.json()
-    except Exception:
-        return JSONResponse(status_code=400, content=AudioChatResponse(status="error", error="invalid_json", transcript="", response="", model="").model_dump())
-
+    """Audio → STT → the same session/memory-aware ChatService as text chat."""
     import base64
-    try:
-        wav_bytes = base64.b64decode(data.get("audio", ""))
-    except Exception:
-        return JSONResponse(status_code=400, content=AudioChatResponse(status="error", error="invalid_base64", transcript="", response="", model="").model_dump())
-
-    if len(wav_bytes) < 100:
-        return JSONResponse(status_code=400, content=AudioChatResponse(status="error", error="empty_audio", transcript="", response="", model="").model_dump())
-
-    recording_s = float(data.get("duration_s", 0.0))
-    t0 = time.perf_counter()
 
     try:
-        result = manager.transcribe(wav_bytes)
-    except Exception as e:
-        return JSONResponse(status_code=500, content=AudioChatResponse(status="error", error="stt_failed", transcript="", response="", model="", details=f"{type(e).__name__}: {e}").model_dump())
-
-    t1 = time.perf_counter()
-    transcription_ms = round((t1 - t0) * 1000.0, 2)
-    transcript = result["transcript"]
-
-    # Transcript an bestehende Chat-Pipeline uebergeben
-    try:
-        chat_result = manager.chat(transcript, data.get("model") or None, temperature=0.7)
-    except Exception as e:
-        return JSONResponse(status_code=500, content=AudioChatResponse(
-            status="error", error="chat_failed", transcript=transcript, response="",
-            model=data.get("model") or manager.default_model,
-            transcription_ms=transcription_ms,
-            details=f"{type(e).__name__}: {e}",
+        req = AudioChatRequest.model_validate(await request.json())
+    except Exception as exc:
+        return JSONResponse(status_code=400, content=AudioChatResponse(
+            status="error", error="invalid_json",
+            details=f"Ungültiger Audio-Request: {type(exc).__name__}"
         ).model_dump())
 
-    t2 = time.perf_counter()
+    try:
+        # validate=True rejects malformed input instead of silently discarding it
+        wav_bytes = base64.b64decode(req.audio, validate=True)
+    except Exception:
+        return JSONResponse(status_code=400, content=AudioChatResponse(
+            status="error", error="invalid_base64"
+        ).model_dump())
+
+    max_bytes = int(manager.stt_config.get("max_audio_bytes", 25_000_000))
+    if len(wav_bytes) < 100:
+        return JSONResponse(status_code=400, content=AudioChatResponse(
+            status="error", error="empty_audio"
+        ).model_dump())
+    if len(wav_bytes) > max_bytes:
+        return JSONResponse(status_code=413, content=AudioChatResponse(
+            status="error", error="audio_too_large",
+            details=f"Audio zu gross: {len(wav_bytes)} Bytes (max {max_bytes})"
+        ).model_dump())
+    if not (wav_bytes[:4] == b"RIFF" and wav_bytes[8:12] == b"WAVE"):
+        return JSONResponse(status_code=400, content=AudioChatResponse(
+            status="error", error="invalid_audio_format"
+        ).model_dump())
+
+    t0 = time.perf_counter()
+    try:
+        stt_result = manager.transcribe(wav_bytes)
+    except Exception as e:
+        audit_event("audio_chat_failed", stage="stt", status="error", error_type=type(e).__name__)
+        return JSONResponse(status_code=500, content=AudioChatResponse(
+            status="error", error="stt_failed",
+            details=f"{type(e).__name__}: {e}"
+        ).model_dump())
+
+    transcription_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+    transcript = stt_result.get("transcript", "").strip()
+    if not transcript:
+        return JSONResponse(status_code=422, content=AudioChatResponse(
+            status="error", error="empty_transcript",
+            transcription_ms=transcription_ms, stt_runtime=stt_result.get("runtime", "")
+        ).model_dump())
+
+    try:
+        # Important: do not bypass ChatService; this preserves session history,
+        # retrieval, graph extraction and memory indexing for voice turns.
+        chat_result = chat_service.chat(
+            transcript, model_id=req.model, session_id=req.session_id, temperature=0.7
+        )
+    except KeyError as e:
+        audit_event("audio_chat_failed", stage="chat", status="error", error_type="KeyError")
+        return JSONResponse(status_code=404, content=AudioChatResponse(
+            status="error", error="unknown_session" if "Session" in str(e) else "unknown_model",
+            model=req.model or manager.default_model, details=str(e)
+        ).model_dump())
+    except Exception as e:
+        audit_event("audio_chat_failed", stage="chat", status="error", error_type=type(e).__name__)
+        return JSONResponse(status_code=500, content=AudioChatResponse(
+            status="error", error="chat_failed", transcript=transcript,
+            model=req.model or manager.default_model,
+            transcription_ms=transcription_ms,
+            details=f"{type(e).__name__}: {e}"
+        ).model_dump())
+
+    audit_event(
+        "audio_chat_completed", session_id=chat_result.get("session_id", ""),
+        model=chat_result.get("model", ""), stt_runtime=stt_result.get("runtime", ""),
+        chat_runtime=chat_result.get("runtime", ""),
+        transcription_ms=transcription_ms, chat_ms=chat_result.get("latency_ms", 0.0),
+        total_ms=round((time.perf_counter() - t0) * 1000.0, 2), status="success",
+    )
     return AudioChatResponse(
-        status="success",
-        transcript=transcript,
-        response=chat_result["response"],
-        model=chat_result["model"],
-        language=manager.stt_config.get("language", "auto"),
-        recording_s=recording_s,
-        transcription_ms=transcription_ms,
+        status="success", transcript=transcript, response=chat_result["response"],
+        model=chat_result["model"], language=manager.stt_config.get("language", "auto"),
+        recording_s=req.duration_s, transcription_ms=transcription_ms,
         chat_ms=round(chat_result.get("latency_ms", 0.0), 2),
-        total_ms=round((t2 - t0) * 1000.0, 2),
-        stt_runtime=result["runtime"],
-        chat_runtime=chat_result.get("runtime", "llamacpp"),
+        total_ms=round((time.perf_counter() - t0) * 1000.0, 2),
+        stt_runtime=stt_result.get("runtime", ""),
+        chat_runtime=chat_result.get("runtime", ""),
+        session_id=chat_result.get("session_id", ""),
+        message_id=chat_result.get("message_id", ""),
+        history_used=chat_result.get("history_used", 0),
     ).model_dump()
 
 
@@ -276,6 +314,74 @@ def create_session():
 @app.get("/sessions")
 def list_sessions(limit: int = 50):
     return {"sessions": store.list_sessions(limit=limit)}
+
+
+@app.get("/sessions/{session_id}/export")
+def export_session(session_id: str, include_audit: bool = True):
+    """Export one session and its technical audit trail as JSON."""
+    session = store.get_session(session_id)
+    if session is None:
+        return JSONResponse(status_code=404, content=ErrorResponse(
+            error="unknown_session", details=f"Session existiert nicht: {session_id}"
+        ).model_dump())
+    return {
+        "status": "success",
+        "session": session,
+        "messages": store.get_messages(session_id),
+        "message_count": store.count_messages(session_id),
+        "audit_events": read_events(session_id) if include_audit else [],
+    }
+
+
+@app.get("/sessions/{session_id}/export.md")
+def export_session_markdown(session_id: str):
+    """Export one session as a human-readable Markdown document."""
+    session = store.get_session(session_id)
+    if session is None:
+        return JSONResponse(status_code=404, content=ErrorResponse(
+            error="unknown_session", details=f"Session existiert nicht: {session_id}"
+        ).model_dump())
+
+    lines = [
+        f"# GUIALITA Session {session_id}", "",
+        f"- Status: `{session.get('status', '')}`",
+        f"- Erstellt: `{session.get('created_at', '')}`",
+        f"- Aktualisiert: `{session.get('updated_at', '')}`", "",
+        "## Nachrichten", "",
+    ]
+    for message in store.get_messages(session_id):
+        role = message.get("role", "unknown").capitalize()
+        created = message.get("created_at", "")
+        lines.extend([f"### {role} — {created}", "", message.get("content", ""), ""])
+
+    events = read_events(session_id)
+    if events:
+        lines.extend(["## Technische Ereignisse", "", "| Zeit | Ereignis | Details |", "|---|---|---|"])
+        for event in events:
+            details = ", ".join(
+                f"{key}={value}" for key, value in event.items()
+                if key not in {"timestamp", "event"}
+            ).replace("|", "\\|")
+            lines.append(f"| {event.get('timestamp', '')} | {event.get('event', '')} | {details} |")
+
+    return Response(
+        content="\n".join(lines) + "\n",
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=guialita-{session_id}.md"},
+    )
+
+
+@app.get("/audit/events")
+def audit_events(session_id: str = None, limit: int = 200):
+    """Return technical audit metadata for local diagnostics."""
+    events = read_events(session_id, limit=limit)
+    return {"events": events, "count": len(events)}
+
+
+@app.get("/audit/summary")
+def audit_summary_endpoint(session_id: str = None):
+    """Return aggregate latency and success metrics from technical audit data."""
+    return audit_summary(session_id)
 
 
 @app.get("/sessions/{session_id}/messages")
@@ -330,6 +436,11 @@ def chat(req: ChatRequest, request: Request):
             temperature=0.7,
         )
         lat.mark_model_response()
+        audit_event(
+            "chat_completed", session_id=result["session_id"], model=result["model"],
+            runtime=result.get("runtime", ""), latency_ms=result.get("latency_ms", 0.0),
+            history_used=result.get("history_used", 0), status="success",
+        )
         return ChatResponse(
             status="success",
             response=result["response"],
@@ -376,6 +487,10 @@ def chat(req: ChatRequest, request: Request):
         )
     except Exception as e:
         lat.mark_model_response()
+        audit_event(
+            "chat_failed", session_id=req.session_id or "", model=req.model or manager.default_model,
+            status="error", error_type=type(e).__name__, latency_ms=lat.total_ms,
+        )
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(

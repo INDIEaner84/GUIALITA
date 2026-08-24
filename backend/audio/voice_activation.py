@@ -481,16 +481,15 @@ class VoiceActivationService:
         return None
 
     def _play_audio(self, wav_bytes: bytes):
+        tmp_path = None
         try:
             import sounddevice as sd
-            with wave.open(tempfile.NamedTemporaryFile(suffix=".wav", delete=False), "rb") as wf:
-                pass
-
             tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+            tmp_path = tmp.name
             tmp.write(wav_bytes)
             tmp.close()
 
-            with wave.open(tmp.name, "rb") as wf:
+            with wave.open(tmp_path, "rb") as wf:
                 sr = wf.getframerate()
                 nchannels = wf.getnchannels()
                 sampwidth = wf.getsampwidth()
@@ -508,10 +507,11 @@ class VoiceActivationService:
             sd.play(audio, sr)
             sd.wait()
 
-            try:
-                os.unlink(tmp.name)
-            except OSError:
-                pass
-
         except Exception as e:
             logger.warning("Audio-Wiedergabe fehlgeschlagen: %s", e)
+        finally:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass

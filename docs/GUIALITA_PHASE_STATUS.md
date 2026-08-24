@@ -22,9 +22,9 @@ grep -E "^\s+(title|status|gate_status):" docs/GUIALITA_STATE.yaml
 ## Statusvokabular
 
 Die Bedeutung von `PASS`, `OBSERVED`, `DOCUMENTED`, `OPEN`, `UNKNOWN`,
-`NOT_STARTED`, `BLOCKED` und `PERFORMANCE_OPTIMIZATION_REQUIRED` ist in
-`GUIALITA_STATE.yaml` unter `status_vocabulary` definiert. `UNKNOWN` wird
-nicht zu `PASS` umgedeutet.
+`NOT_STARTED`, `BLOCKED`, `IN_PROGRESS` und
+`PERFORMANCE_OPTIMIZATION_REQUIRED` ist in `GUIALITA_STATE.yaml` unter
+`status_vocabulary` definiert. `UNKNOWN` wird nicht zu `PASS` umgedeutet.
 
 ## Historische Belege
 

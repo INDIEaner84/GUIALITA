@@ -86,9 +86,7 @@ class ModelManager:
     def list_models(self) -> list:
         result = []
         for mid, cfg in self.get_models().items():
-            path = cfg.get("path", "")
-            if not os.path.isabs(path):
-                path = os.path.join(BASE_DIR, path)
+            path = self._resolve_path(cfg.get("path", ""))
             exists = os.path.exists(path)
             result.append({
                 "id": mid,
