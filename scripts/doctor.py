@@ -22,9 +22,15 @@ def check(label: str, ok: bool, detail: str = "") -> None:
 def main() -> int:
     print(f"GUIALITA doctor — {ROOT}")
     all_ok = True
-    for module in ("fastapi", "pydantic", "yaml", "numpy"):
+    python_packages = (
+        ("fastapi", "fastapi"),
+        ("pydantic", "pydantic"),
+        ("yaml", "PyYAML (import yaml)"),
+        ("numpy", "numpy"),
+    )
+    for module, label in python_packages:
         present = importlib.util.find_spec(module) is not None
-        check(f"Python package {module}", present)
+        check(f"Python package {label}", present)
         all_ok &= present
 
     try:

@@ -6,7 +6,24 @@ Statusangaben** — der Zustand steht ausschließlich in
 
 ---
 
-## 1. Zuerst lesen
+## 1. Arbeitskopie aktualisieren, dann State lesen
+
+Zu Beginn einer neuen Arbeitssitzung zuerst sicherstellen, dass die lokale
+Arbeitskopie nicht veraltet ist. Dabei niemals auf einen anderen Branch
+wechseln, wenn die Umgebung einen festen Arbeitsbranch vorgibt.
+
+```bash
+git status --short --branch
+# Nur bei sauberer Arbeitskopie und vorhandener Remote-Branch:
+git pull --ff-only
+```
+
+Wenn `git pull --ff-only` meldet, dass die Remote-Branch nicht existiert, ist das
+in kurzlebigen Arena-/Arbeitsbranches möglich. Dann nicht eigenmächtig auf
+`main` wechseln, sondern mit der vorhandenen Arbeitskopie fortfahren und den
+Zustand dokumentieren.
+
+Danach die verbindlichen Projektquellen lesen:
 
 | Reihenfolge | Datei | Zweck |
 |---|---|---|
@@ -15,8 +32,9 @@ Statusangaben** — der Zustand steht ausschließlich in
 | 3 | `docs/BASELINES/REGRESSION_CONTRACT.md` | was nicht regredieren darf |
 | 4 | Phase-Reports nach Bedarf | historische Belege zu einzelnen Phasen |
 
-Danach den Repository-Zustand selbst verifizieren (`git status`, Tests),
-bevor irgendetwas geändert wird.
+Nach jedem Pull den State erneut lesen. Vor Änderungen zusätzlich Tests und
+Diagnose passend zur Umgebung ausführen bzw. begründen, wenn sie
+`NOT_EXECUTED` sind.
 
 ---
 
@@ -39,8 +57,9 @@ Rollen pro Modalität siehe `stt_architecture` in `GUIALITA_STATE.yaml` und
 ## 3. Einrichtung
 
 ```bash
-git clone -b arena/01a01e70-guialita https://github.com/INDIEaner84/GUIALITA.git
+git clone https://github.com/INDIEaner84/GUIALITA.git
 cd GUIALITA
+# Falls eine Arbeitsumgebung einen festen Branch vorgibt: auf diesem Branch bleiben.
 
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt   # llama-cpp-python für GPU siehe Hinweis darin

@@ -1,253 +1,189 @@
-# GUIALITA — Lokaler LFM-Sprachassistent
+# GUIALITA — Lokale kognitive/Audio-Runtime
 
-**Browser → Local LFM → Memory → Sprache**
+GUIALITA ist eine vollständig lokale Runtime mit HTTP-Schnittstelle für Chat,
+Memory und Audio-Pipeline.
 
-> Aktueller Stand: Voice Activation V1, persistente Sessions, Memory-Retrieval,
-> Knowledge-Graph, Whisper-STT und LFM-TTS sind implementiert. Die kanonische
-> Pipeline ist lokal und hardwareabhängig; Vision/Desktop-Control liegen noch
-> als separate Prototypen unter `PROTOTYPEN/` vor.
+```text
+Mikrofon → whisper.cpp (STT) → Granite/LFM-Kognition → LFM2.5-Audio (TTS)
+                                      ↕
+                         SQLite: Session · Memory · Graph
+```
+
+Der **verbindliche Projektzustand** steht ausschließlich in:
+
+```text
+docs/GUIALITA_STATE.yaml
+```
+
+README, Phase-Reports und Protokolle sind Hilfs- bzw. Evidenzdokumente. Wenn
+sich Angaben widersprechen, gilt `docs/GUIALITA_STATE.yaml`.
+
+---
+
+## Neue Session / Arbeitsbeginn
+
+Empfohlene Reihenfolge:
+
+```bash
+git status --short --branch
+# Nur bei sauberer Arbeitskopie und vorhandener Remote-Branch:
+git pull --ff-only
+
+sed -n '1,220p' docs/GUIALITA_SESSION_BOOTSTRAP.md
+sed -n '1,260p' docs/GUIALITA_STATE.yaml
+python3 scripts/doctor.py
+python3 scripts/run_all_tests.py --list
+```
+
+Wichtig:
+
+- Nicht auf einen anderen Branch wechseln, wenn die Arbeitsumgebung einen festen
+  Branch vorgibt.
+- Nach einem Pull oder Maschinenwechsel den State erneut lesen.
+- Keine neue Phase aus der Existenz von Dateien ableiten. Autorisierung steht im
+  State.
+
+---
 
 ## Schnellstart
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python scripts/doctor.py
+bash scripts/setup_local.sh
 GUIALITA_VENV="$PWD/.venv" bash scripts/start.sh
 ```
 
-Die Modellpfade in `config/models.yaml` müssen zur lokalen Installation passen.
-Absolute Pfade können durch Umgebungsvariablen ersetzt werden, zum Beispiel:
-
-```yaml
-path: ${GUIALITA_MODEL_ROOT}/granite/3b/model.gguf
-```
-
-Dann vor dem Start setzen:
+Danach prüfen:
 
 ```bash
-export GUIALITA_MODEL_ROOT=/pfad/zu/models
-export GUIALITA_WHISPER_CLI=/pfad/zu/whisper-cli
+curl -s http://localhost:8080/diagnostics | python3 -m json.tool
 ```
 
-`doctor.py` ist schreibgeschützt und verändert weder Ollama noch Modelle.
+Stoppen:
 
-**Browser → Local LFM → Browser**
-
-Phase 0 ist ein technischer Proof of Function: Ein lokal laufendes LFM-Modell
-wird über einen lokalen Backend-Service aus dem Browser angesprochen.
-
+```bash
+bash scripts/stop.sh
 ```
-BROWSER
-   ↓
-LOCAL API (FastAPI, Port 8080)
-   ↓
-MODEL ADAPTER (llama-cpp-python primär, Ollama sekundär)
-   ↓
-LFM RUNTIME (GPU: GTX 1080 Ti / CPU-Fallback)
-   ↓
-LOCAL API
-   ↓
-BROWSER
-```
+
+`stop.sh` beendet nur GUIALITA-Prozesse. Ollama ist ein optionaler Shared
+Service und wird nicht gestoppt oder umkonfiguriert.
 
 ---
 
-## Verwendete Komponenten
+## Lokale Konfiguration
 
-| Komponente | Wert |
-|------------|------|
-| **Primärmodell** | Granite 4.1 3B (`granite-4.1-3b-Q4_K_M.gguf`, 2.1 GB) |
-| **Primäre Runtime** | llama-cpp-python 0.3.35 (mit CUDA) |
-| **Sekundäre Runtime** | Ollama (SHARED SERVICE, Port 11434) |
-| **Backend** | FastAPI + Uvicorn, Port 8080 |
-| **Frontend** | Reines HTML/JS (kein Framework) |
-| **GPU** | NVIDIA GTX 1080 Ti (11 GB VRAM, CUDA 12.0) |
+Maschinenspezifische Pfade gehören in `.env` und nicht ins Git. Vorlage:
 
-### Weitere Modelle (für spätere Phasen)
+```bash
+cp .env.example .env
+```
 
-| Modell | Pfad | Phase |
-|--------|------|-------|
-| LFM2.5-VL-3B (Vision) | `models/lfm-vision-3b/` | Phase 2 |
-| LFM2.5-VL-1.6B (Vision) | `models/lfm-vision-1.6b/` | Phase 2 |
-| LFM2.5-Audio-1.5B (Audio) | `models/lfm-audio-1.5b/` | Phase 1 |
-| Granite 4.1 8B | `…/models/granite/8b/` (extern) | später |
-| LFM2.5-8B-A1B (Agent) | `…/models/lfm/agent/` (extern) | später |
+Wichtige Variablen:
 
-> Hinweis: Die Granite-/LFM-Modelle liegen auf `/media/hz/_Ext_Seagat/AiEnvHz/LFM Granite Muscal/models/`
-> und werden per Pfad-Referenz genutzt. Die Platte ist exFAT und unterstützt
-> keine Symlinks - die Config referenziert die Originalpfade direkt.
+```text
+GUIALITA_ROOT
+GUIALITA_MODEL_ROOT
+GUIALITA_EXTERNAL_MODEL_ROOT
+GUIALITA_RUNTIME_ROOT
+GUIALITA_DATA_ROOT
+GUIALITA_WHISPER_CLI
+GUIALITA_VENV
+```
+
+Pfadauflösung und Defaults sind in `backend/paths.py` implementiert.
+
+Externe, nicht per pip installierbare Komponenten:
+
+- `whisper.cpp` / `whisper-cli` für Live-STT
+- `llama-liquid-audio-cli` für LFM2.5-Audio-TTS
+- Modelldateien wie GGUF/BIN
+- optional Ollama als Shared Service auf Port 11434
 
 ---
 
-## Voraussetzungen
-
-- Linux (getestet: Ubuntu 24.04, XFCE)
-- Python 3.10+ mit venv
-- NVIDIA GPU mit CUDA-Toolkit (optional, CPU-Fallback vorhanden)
-- ~6 GB freier Speicher (Modelle)
-
----
-
-## Installation
+## Diagnose
 
 ```bash
-# 1. Python-Venv erstellen (einmalig)
-python3 -m venv /home/hz/.guialita-venv
-
-# 2. Abhängigkeiten installieren (einmalig, ~15 Min mit CUDA-Build)
-export CMAKE_ARGS="-DGGML_CUDA=on"
-export CUDA_HOME=/usr
-/home/hz/.guialita-venv/bin/pip install llama-cpp-python fastapi uvicorn pydantic pyyaml httpx
-
-# 3. Desktop-Starter installieren (einmalig)
-bash /media/hz/_Ext_Seagat/GUIALITA/scripts/install_desktop.sh
+python3 scripts/doctor.py
 ```
 
-## Start
+Der Doctor ist read-only. Er lädt keine Modelle herunter, startet keine Services
+und verändert Ollama nicht.
 
-### Über das Anwendungsmenü (empfohlen)
-
-1. Anwendungsmenü öffnen
-2. **GUIALITA** wählen (Kategorie: Entwicklung)
-3. Backend startet automatisch
-4. Browser öffnet sich: `http://localhost:8080`
-
-### Manuell über Terminal
+Backend-Diagnose bei laufendem Server:
 
 ```bash
-bash /media/hz/_Ext_Seagat/GUIALITA/scripts/start.sh
-```
-
-### Stoppen
-
-```bash
-bash /media/hz/_Ext_Seagat/GUIALITA/scripts/stop.sh
-```
-
-> **Wichtig:** `stop.sh` beendet NUR GUIALITA-Prozesse. Ollama ist ein
-> SHARED SERVICE und wird niemals beendet oder verändert.
-
----
-
-## Start-Ablauf (start.sh)
-
-1. Umgebung prüfen (venv, Port 8080)
-2. Backend starten (PID-Datei in `scripts/logs/guialita.pid`)
-3. Auf `/health` warten (max. 60 s)
-4. Verfügbarkeit des Primärmodells prüfen
-5. Ollama nur ERKENNEN (nicht beenden, nicht konfigurieren)
-6. Browser öffnen: `http://localhost:8080`
-
-## API-Endpunkte
-
-### `GET /health`
-
-```json
-{
-  "api": "online",
-  "default_model": "granite-3b",
-  "primary_runtime": { "runtime": "llama-cpp-python", "status": "online", "gpu": true },
-  "secondary_runtime": { "status": "online", "runtime": "ollama", "models": ["…"] },
-  "models": [ { "id": "granite-3b", "name": "granite-4.1-3b", "available": true, … } ],
-  "latency_ms": 3.2
-}
-```
-
-### `GET /models`
-
-Listet alle konfigurierten Modelle mit Verfügbarkeit.
-
-### `POST /chat`
-
-```json
-// Request
-{ "message": "Hallo", "model": "granite-3b" }
-
-// Success
-{ "status": "success", "response": "…", "model": "granite-4.1-3b", "latency_ms": 283, "runtime": "llamacpp" }
-
-// Error
-{ "status": "error", "error": "…", "model": "…", "runtime": "…", "details": "…" }
+curl -s http://localhost:8080/diagnostics | python3 -m json.tool
 ```
 
 ---
 
 ## Tests
 
-Voraussetzung: Backend läuft.
+Die primäre Testinventur läuft ohne Backend:
 
 ```bash
-cd /media/hz/_Ext_Seagat/GUIALITA
-/home/hz/.guialita-venv/bin/python tests/test_api.py
+python3 scripts/run_all_tests.py --list
 ```
 
-Enthaltene Tests:
+Alle Suiten:
 
-1. **API Health Test** - `/health` liefert API- und Runtime-Status
-2. **Model Connectivity Test** - Modelle gelistet und verfügbar
-3. **Chat API Test** - Erfolg, Fehlerfälle, Format
-4. **End-to-End Test** - echter Chat: "…CONNECTION TEST OK" muss vom LFM kommen
+```bash
+python3 scripts/run_all_tests.py
+```
+
+Viele Tests benötigen Backend, Modelle, GPU, Mikrofon, `espeak-ng` oder lokale
+Audio-Runtimes. Der Runner unterscheidet deshalb `PASS`, `FAIL` und
+`NOT_EXECUTED`. Tests aus `NOT_EXECUTED`-Suiten zählen nicht als bestanden.
+
+Einzelne Suite:
+
+```bash
+python3 tests/test_api.py
+```
 
 ---
 
-## Fehlerdiagnose
+## Offenes Performance-Gate
 
-| Symptom | Ursache | Aktion |
-|---------|---------|--------|
-| Browser zeigt OFFLINE | Backend läuft nicht | `start.sh` ausführen, Log prüfen |
-| Modell "fehlt" in GUI | GGUF-Datei nicht gefunden | Pfade in `config/models.yaml` prüfen |
-| "Ollama nicht erreichbar" | Ollama gestoppt (SHARED) | `ollama serve` separat starten |
-| CUDA-Fehler beim Laden | GPU-Load fehlgeschlagen | Adapter fällt automatisch auf CPU zurück |
-| Backend startet nicht | Port 8080 belegt | Log: `scripts/logs/backend.log` prüfen |
-| Langsame erste Antwort | Erstes Laden des Modells | Normal (30-60 s), danach schnell (GPU) |
-
-### Logs
+Die aktuell empfohlene Nachmessung steht im State. Auf der Zielmaschine mit
+Modellen, Mikrofon und Audio-Runtime:
 
 ```bash
-tail -f /media/hz/_Ext_Seagat/GUIALITA/scripts/logs/backend.log
+python3 scripts/measure_voice_turn.py --record --turns 3
 ```
+
+Das Skript schreibt einen Report nach:
+
+```text
+docs/measurements/voice-turn-<zeitstempel>.yaml
+```
+
+Erst danach sollten die Werte in `docs/GUIALITA_STATE.yaml` übertragen und das
+zugehörige Gate bewertet werden.
 
 ---
 
 ## Projektstruktur
 
-```
-GUIALITA/
-├── README.md
-├── config/models.yaml        # Modell- und Server-Konfiguration
-├── backend/
-│   ├── main.py               # FastAPI-Server (Port 8080)
-│   ├── manager.py            # Modell-Manager (Adapter-Auswahl)
-│   ├── adapters/
-│   │   ├── base.py           # Abstracte Adapter-Schnittstelle
-│   │   ├── llamacpp_adapter.py  # PRIMÄR: llama-cpp-python (dediziert)
-│   │   └── ollama_adapter.py    # SEKUNDÄR: Ollama (shared, wird nie beendet)
-│   ├── models/schemas.py     # Pydantic-Schemas
-│   └── utils/latency.py      # Latenz-Messung
-├── frontend/index.html       # Minimaler Chat-UI
-├── models/                   # Heruntergeladene LFM-Modelle
-│   ├── lfm-audio-1.5b/
-│   ├── lfm-vision-3b/
-│   └── lfm-vision-1.6b/
-├── scripts/
-│   ├── start.sh              # Hauptstart (Menü + Terminal)
-│   ├── stop.sh               # Stoppt nur GUIALITA-Prozesse
-│   ├── download_models.sh    # LFM-Modelle von Hugging Face
-│   └── install_desktop.sh    # Installiert GUIALITA.desktop
-└── tests/test_api.py         # Health-, Chat-, E2E-Tests
+```text
+backend/      FastAPI, Modellmanager, ChatService, Memory, Audio
+config/       Modell- und Voice-Konfiguration
+docs/         State, ADRs, Baselines, Phase-Reports, Protokolle
+frontend/     statisches HTML/JS-Frontend
+scripts/      Start/Stop, Setup, Diagnose, Tests, Messungen
+tests/        unittest-/pytest-basierte Suiten
+PROTOTYPEN/   nicht angebundene Prototypen
 ```
 
 ---
 
-## Phasenplan
+## Dokumentationsregeln
 
-| Phase | Inhalt | Status |
-|-------|--------|--------|
-| **0** | Browser → Local LFM → Browser | ✅ abgeschlossen |
-| 1 | Microphone → LFM Audio → Text → Browser | Modell vorhanden |
-| 2 | LFM Vision → Desktop erkennen | Modell vorhanden |
-| 3 | Desktop Control / Computer Use | – |
-| 4 | Knowledge Objects | – |
-| 5 | Worker-Agenten | – |
-| 6+ | Overlay, Graph, Multi-Device | – |
+- `docs/GUIALITA_STATE.yaml` ist die einzige verbindliche Statusquelle.
+- Phase-Reports sind historische Evidenz und werden nicht rückwirkend geändert.
+- Architekturentscheidungen gehören als ADR nach `docs/adr/`.
+- Keine Modelle, Datenbanken, WAVs, Logs oder Binaries ins Git.
+- Vision, Desktop-/Browser-Control, MUSCAL, WebSocket und Streaming sind nicht
+  aus README-Hinweisen autorisiert. Maßgeblich ist immer der State.

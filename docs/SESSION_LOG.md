@@ -164,6 +164,42 @@ Commit: `8bb9500 Make voice pipeline session-aware and improve local setup`
 - M4/M5 und die verbleibenden Hardware-/Runtime-Blocker sind jetzt einheitlich
   ausgewiesen.
 
+## 2026-08-25 — Session-Übergabe und Dokumentationshärtung
+
+### Ausgangslage
+
+- Branch: `arena/01a03788-guialita`.
+- Arbeitskopie war zu Sitzungsbeginn sauber.
+- `git fetch origin` war möglich; `git pull --ff-only origin arena/01a03788-guialita`
+  konnte nicht ausgeführt werden, weil die kurzlebige Remote-Branch nicht
+  vorhanden war. Es wurde nicht auf `main` gewechselt.
+- Kanonischer State gelesen: `current.hard_stop: true`,
+  `current.recommended_next: voice_latency_remeasurement`.
+
+### Prüfung
+
+- `python3 scripts/run_all_tests.py --list`: 141 Testfunktionen in 9 Suiten.
+- `python3 scripts/run_all_tests.py --only voice_activation`: `NOT_EXECUTED`,
+  weil Python-Abhängigkeiten in der Sandbox fehlen.
+- `python3 scripts/doctor.py`: `PARTIAL`, fehlende Python-Pakete und keine
+  lokale Runtime-/Modellumgebung in der Sandbox.
+
+### Änderungen
+
+- README konsolidiert: keine veralteten absoluten Zielmaschinenpfade als
+  Schnellstart, klare Verweise auf `GUIALITA_STATE.yaml`, Bootstrap, Doctor und
+  Test-Runner.
+- Bootstrap ergänzt: Zu Sitzungsbeginn Arbeitskopie aktualisieren/verifizieren,
+  danach State lesen; bei fehlender kurzlebiger Remote-Branch nicht auf `main`
+  wechseln.
+- `scripts/doctor.py` meldet `PyYAML (import yaml)` statt nur `yaml`.
+
+### Offene Punkte
+
+- Voice-Latenz-Nachmessung bleibt der empfohlene nächste echte Zielmaschinen-
+  Schritt: `python3 scripts/measure_voice_turn.py --record --turns 3`.
+- Keine neue Feature-Phase wurde implementiert.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.
