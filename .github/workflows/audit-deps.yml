@@ -1,0 +1,48 @@
+name: Dependency Audit
+on:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: "0 6 * * 3"
+
+jobs:
+  deps:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run OpenCode Dependency Audit
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        with:
+          model: openrouter/google/gemini-2.5-flash
+          prompt: |
+            Führe einen Dependency-Audit durch:
+
+            1. PAKETERKENNUNG
+            - Erkenne das Paket-System (npm, pip, cargo, go)
+            - Sammle alle Dependencies
+            
+            2. SICHERHEITS-CHECKS
+            - Führe npm audit / pip-audit / cargo audit aus
+            - Prüfe auf bekannte CVEs
+            - Identifiziere kritische Schwachstellen
+            
+            3. VERALTETE PAKETE
+            - Identifiziere veraltete Dependencies
+            - Prüfe auf End-of-Life Pakete
+            - Analysiere Major-Version-Unterschiede
+            
+            4. LIZENZ-ANALYSE
+            - Sammle alle Lizenzen
+            - Identifiziere Lizenzkonflikte
+            
+            Erstelle ein GitHub Issue für kritische Probleme.

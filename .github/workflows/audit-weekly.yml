@@ -1,0 +1,51 @@
+name: Weekly Repo Audit
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run OpenCode Audit
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        with:
+          model: openrouter/google/gemini-2.5-flash
+          prompt: |
+            Führe einen vollständigen wöchentlichen Audit durch:
+            
+            1. TESTS & COVERAGE
+            - Erkenne das Test-Framework
+            - Führe alle Tests aus
+            - Miss Coverage und identifiziere Lücken
+            
+            2. DEPENDENCIES
+            - Prüfe auf veraltete Pakete
+            - Führe Security-Audit durch (npm audit / pip-audit)
+            - Identifiziere Lizenzkonflikte
+            
+            3. CODE-QUALITÄT
+            - Analysiere Komplexität
+            - Identifiziere Code-Smells
+            - Prüfe Naming Conventions
+            
+            4. DOKUMENTATION
+            - Prüfe README
+            - Analysiere API-Docs
+            - Identifiziere undokumentierte Funktionen
+            
+            Erstelle ein GitHub Issue mit dem vollständigen Audit-Bericht.

@@ -1,0 +1,45 @@
+name: Auto PR Review
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run OpenCode PR Review
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        with:
+          model: openrouter/google/gemini-2.5-flash
+          prompt: |
+            Reviewe diesen Pull Request:
+
+            1. CODE-QUALITÄT
+            - Prüfe auf Best Practices
+            - Identifiziere potenzielle Bugs
+            - Analysiere Edge Cases
+            
+            2. PERFORMANCE
+            - Prüfe auf Performance-Auswirkungen
+            - Identifiziere potenzielle Engpässe
+            
+            3. SICHERHEIT
+            - Prüfe auf Sicherheitsprobleme
+            - Analysiere Input-Validation
+            
+            4. TESTS
+            - Prüfe ob Tests vorhanden sind
+            - Analysiere Test-Coverage
+            
+            Gib konstruktives Feedback mit konkreten Verbesserungsvorschlägen.
