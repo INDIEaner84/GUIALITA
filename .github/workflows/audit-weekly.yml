@@ -3,6 +3,16 @@ on:
   schedule:
     - cron: "0 9 * * 1"
   workflow_dispatch:
+    inputs:
+      scope:
+        description: 'Audit scope'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - security-only
+          - deps-only
 
 jobs:
   audit:
@@ -19,6 +29,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Detect package manager
+        id: detect
+        run: |
+          if [ -f "package.json" ]; then echo "pm=npm" >> $GITHUB_OUTPUT; fi
+          if [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then echo "pm=pip" >> $GITHUB_OUTPUT; fi
+          if [ -f "Cargo.toml" ]; then echo "pm=cargo" >> $GITHUB_OUTPUT; fi
+          if [ -f "go.mod" ]; then echo "pm=go" >> $GITHUB_OUTPUT; fi
+
       - name: Run OpenCode Audit
         uses: anomalyco/opencode/github@latest
         env:
@@ -26,26 +44,28 @@ jobs:
         with:
           model: openrouter/google/gemini-2.5-flash
           prompt: |
-            Führe einen vollständigen wöchentlichen Audit durch:
+            Führe einen vollständigen wöchentlichen Audit durch.
+            
+            Erkanntes Package-Management: ${{ steps.detect.outputs.pm }}
             
             1. TESTS & COVERAGE
-            - Erkenne das Test-Framework
-            - Führe alle Tests aus
-            - Miss Coverage und identifiziere Lücken
+            - Führe verfügbare Tests aus (npm test / pytest / go test / cargo test)
+            - Miss Coverage falls möglich
+            - Identifiziere fehlende Tests
             
             2. DEPENDENCIES
-            - Prüfe auf veraltete Pakete
-            - Führe Security-Audit durch (npm audit / pip-audit)
-            - Identifiziere Lizenzkonflikte
+            - Führe Security-Audit aus (npm audit / pip-audit / cargo audit)
+            - Identifiziere veraltete Pakete
+            - Prüfe auf kritische CVEs
             
             3. CODE-QUALITÄT
-            - Analysiere Komplexität
-            - Identifiziere Code-Smells
-            - Prüfe Naming Conventions
+            - Analysiere Dateistruktur
+            - Identifiziere große/komplexe Dateien
+            - Prüfe auf TODO/FIXME/HACK Kommentare
             
             4. DOKUMENTATION
-            - Prüfe README
-            - Analysiere API-Docs
+            - Prüfe README Vollständigkeit
             - Identifiziere undokumentierte Funktionen
             
-            Erstelle ein GitHub Issue mit dem vollständigen Audit-Bericht.
+            Erstelle ein GitHub Issue mit dem strukturierten Audit-Bericht.
+            Nutze Markdown-Formatierung mit Tabellen für klare Lesbarkeit.

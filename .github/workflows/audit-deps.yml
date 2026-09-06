@@ -4,6 +4,7 @@ on:
     branches: [main, master]
   schedule:
     - cron: "0 6 * * 3"
+  workflow_dispatch:
 
 jobs:
   deps:
@@ -26,10 +27,10 @@ jobs:
           model: openrouter/google/gemini-2.5-flash
           prompt: |
             Führe einen Dependency-Audit durch:
-
+            
             1. PAKETERKENNUNG
             - Erkenne das Paket-System (npm, pip, cargo, go)
-            - Sammle alle Dependencies
+            - Sammle alle direkten und transitive Dependencies
             
             2. SICHERHEITS-CHECKS
             - Führe npm audit / pip-audit / cargo audit aus
@@ -42,7 +43,8 @@ jobs:
             - Analysiere Major-Version-Unterschiede
             
             4. LIZENZ-ANALYSE
-            - Sammle alle Lizenzen
-            - Identifiziere Lizenzkonflikte
+            - Sammle alle Lizenzen der Dependencies
+            - Identifiziere Lizenzkonflikte (GPL vs Proprietär)
             
             Erstelle ein GitHub Issue für kritische Probleme.
+            Bei keinen kritischen Problemen: Kein Issue erstellen.

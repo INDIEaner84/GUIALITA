@@ -2,6 +2,7 @@ name: Auto PR Review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
 
 jobs:
   review:
@@ -23,8 +24,10 @@ jobs:
         with:
           model: openrouter/google/gemini-2.5-flash
           prompt: |
-            Reviewe diesen Pull Request:
-
+            Reviewe diesen Pull Request (PR #${{ github.event.pull_request.number }}):
+            
+            Änderungen: ${{ github.event.pull_request.title }}
+            
             1. CODE-QUALITÄT
             - Prüfe auf Best Practices
             - Identifiziere potenzielle Bugs
@@ -40,6 +43,7 @@ jobs:
             
             4. TESTS
             - Prüfe ob Tests vorhanden sind
-            - Analysiere Test-Coverage
+            - Analysiere ob neue Tests nötig sind
             
             Gib konstruktives Feedback mit konkreten Verbesserungsvorschlägen.
+            Format: Kommentar direkt auf den PR.
