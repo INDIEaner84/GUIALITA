@@ -3,8 +3,8 @@
 
 Warum es dieses Skript gibt
 ---------------------------
-Die Suiten riefen sich gegenseitig als Subprozesse auf. Beim Lauf aller neun
-Suiten wurde `test_memory.py` achtmal und `test_api.py` sechsmal ausgeführt —
+Die Suiten riefen sich gegenseitig als Subprozesse auf. Beim historischen Lauf
+aller neun Suiten wurde `test_memory.py` achtmal und `test_api.py` sechsmal ausgeführt —
 35 Suite-Läufe statt 9. Zwei Folgen:
 
 1. Die Testzahlen in der Dokumentation widersprachen sich (108 / 79 / 71 / 145),
@@ -106,6 +106,15 @@ SUITES = [
     # Neu 2026-11-13 (ADR-002, P2): Statistik des Benchmarks. Reine
     # Standardbibliothek — läuft überall, auch ohne installierte Pakete.
     ("test_benchmark.py",           "Benchmark-Statistik",      [],                         120),
+    # Neu 2026-11-13 (ADR-002, P3–P6): Eval-Harness, Lifecycle-Budget,
+    # Rollen-Registry, MUSCAL CLI/HTTP und Dokumenten-Konsistenz. Alle sechs
+    # Suiten sind reine Standardbibliothek — belastbar in CI ohne Backend.
+    ("test_eval.py",                "Eval-Harness / Golden Set", [],                      120),
+    ("test_modelsctl.py",           "VRAM-Budget + Lifecycle",  [],                      120),
+    ("test_roles.py",               "Rollen-Registry",          [],                      120),
+    ("test_muscal.py",              "MUSCAL-Kette / Guard",     [],                      120),
+    ("test_muscal_http.py",         "MUSCAL-HTTP",              [],                      120),
+    ("test_doc_consistency.py",     "Dokumenten-Konsistenz",    [],                      120),
 ]
 
 CAPABILITY_LABEL = {

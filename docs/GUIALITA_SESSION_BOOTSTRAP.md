@@ -91,9 +91,10 @@ Konfigurierbare Variablen: `GUIALITA_ROOT`, `GUIALITA_MODEL_ROOT`,
 
 ## 4. Tests
 
-Die Suiten sind eigenständige `unittest`-Skripte, kein pytest. **136
-Testfunktionen in 9 Suiten**; 8 davon brauchen Backend, Modelle, GPU,
-Mikrofon oder espeak-ng und sind daher nicht CI-fähig.
+Die Suiten sind eigenständige `unittest`-Skripte, kein pytest.
+**307 Testfunktionen in 19 Suiten**; 8 davon brauchen Backend, Modelle, GPU,
+Mikrofon oder espeak-ng und sind daher nicht CI-fähig. Elf Suiten laufen ohne
+Server, sieben davon sogar ohne installierte Pakete.
 
 ```bash
 python3 scripts/run_all_tests.py          # alle Suiten, jede genau einmal
@@ -114,6 +115,24 @@ Umgebungsabhängige Tests: `GUIALITA_VENV_PY`, `GUIALITA_TEST_DEVICE_ID`.
 
 Ein Test, der in der aktuellen Umgebung nicht laufen kann, ist
 `NOT EXECUTED` — nicht `PASS` und nicht `FAIL`.
+
+### ADR-002-Werkzeuge (CLI/HTTP, keine Desktop-App)
+
+```bash
+python3 scripts/eval.py --dry-run --all-suites       # Golden Set + Grader
+python3 scripts/eval.py --compare A.json B.json     # nur mit echten Live-Reports
+python3 scripts/modelsctl.py budget                 # VRAM, UNKNOWN bleibt UNKNOWN
+python3 scripts/modelsctl.py start --yes            # delegiert an start.sh
+python3 scripts/roles.py validate --check-mirror    # JSON ↔ YAML
+python3 scripts/roles.py switch router planner      # kein Modellwechsel nötig
+python3 scripts/muscal.py run "Aufgabe" --dry-run   # sequenzielle Kette
+python3 scripts/muscal.py serve --port 8099         # HTTP, Default 127.0.0.1
+python3 scripts/check_docs.py                      # Zahlen und Grenzen
+```
+
+Diese Werkzeuge sind im Trockenlauf geprüft. `eval.py --live`,
+`modelsctl.py switch` und `muscal.py --live` brauchen die Referenzmaschine;
+ein grüner Sandbox-Lauf ist keine Hardware-Abnahme.
 
 ### Latenzmessung
 
@@ -153,6 +172,8 @@ nicht laufen können, werden als `NOT_EXECUTED` ausgewiesen — nie als `PASS`.
 
 Verbote und Autorisierungspflichten stehen unter `prohibitions` in
 `GUIALITA_STATE.yaml`. Kurzfassung: nichts implementieren, was dort nicht
-freigegeben ist — insbesondere nicht Phase 1C, keine MUSCAL-Schichten, keine
-Cloud-Anbindung. Autorisierung wird niemals aus der bloßen Existenz von
-Dateien abgeleitet.
+freigegeben ist — insbesondere nicht Phase 1C, keinen MUSCAL-Desktop-Adapter,
+keine parallelen Agenten, keine Cloud-Inferenz. `scripts/muscal.py` bleibt eine
+sequenzielle CLI/HTTP-Schicht. Autorisierung wird niemals aus der bloßen
+Existenz von Dateien abgeleitet; `current.hard_stop: true` und
+`next_authorized_phase: NONE` gelten unverändert.

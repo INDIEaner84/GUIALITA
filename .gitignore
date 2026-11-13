@@ -34,6 +34,10 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 
+# Laufzeitartefakte der Orchestrierung: Audit-Logs und Staging-Vorschlaege.
+# Gehoeren nicht ins Repository — sie sind Ausgaben, keine Quelle.
+data/muscal/
+
 # === Audio recordings (user data) ===
 audio/inbox/*.wav
 audio/processed/*.wav

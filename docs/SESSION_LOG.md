@@ -164,12 +164,13 @@ Commit: `8bb9500 Make voice pipeline session-aware and improve local setup`
 - M4/M5 und die verbleibenden Hardware-/Runtime-Blocker sind jetzt einheitlich
   ausgewiesen.
 
-## 2026-11-13 — ADR-002: Agenten-Orchestrierung (Entwurf)
+## 2026-11-13 — ADR-002: Agenten-Orchestrierung (Entwurf, historisch)
 
 ### Ziel
 
 Architekturentscheidung für die geplante MUSCAL-Orchestrierungsschicht
-festhalten, bevor Code entsteht.
+festhalten, bevor Code entsteht. Dieser Eintrag beschreibt den Stand **vor**
+P1/P2 und vor den P3–P6-Werkzeugen; die Fortschreibung steht unten.
 
 ### Änderungen
 
@@ -179,8 +180,8 @@ festhalten, bevor Code entsteht.
 
 ### Befunde
 
-- MUSCAL ist `future_target: PLANNED`; Laden, Wechseln, Trainieren und
-  Benchmark-Orchestrierung existieren nicht.
+- Zum Entwurfszeitpunkt war MUSCAL `future_target: PLANNED`; Laden, Wechseln,
+  Trainieren und Benchmark-Orchestrierung existierten noch nicht.
 - `testing.ci_note` nennt „sieben von neun" Suiten mit Voraussetzungen,
   `known_risks` nennt „8 von 9". Die Voraussetzungstabelle in
   `REGRESSION_CONTRACT.md` belegt **8 von 9**; die `ci_note` ist falsch.
@@ -194,10 +195,12 @@ als Rollenidentität · D3 Lifecycle mit VRAM-Budget, Wechsel als Kostenstelle �
 D4 MUSCAL beginnt als CLI/HTTP · D5 Verifikation lokal, Cloud nur für Code ·
 D6 Prozessisolation · D7 SSOT-Zahlen vorher konsolidieren.
 
-### Offen
+### Offen zum Zeitpunkt des Entwurfs
 
-- Freigabe für P3–P6 (neue Schichten) steht aus.
-- P0 (`voice_forensics_v1` nachmessen) und P1 (SSOT-Zahlen) sind ohne neue
+- Freigabe für P3–P6 (neue Schichten) stand aus. Die CLI/HTTP-Werkzeuge wurden
+  später als Selbsttests umgesetzt; `prohibitions`, `hard_stop` und
+  `next_authorized_phase` blieben unverändert (siehe Eintrag „P3–P6 umgesetzt").
+- P0 (`voice_forensics_v1` nachmessen) und P1 (SSOT-Zahlen) waren ohne neue
   Freigabe möglich.
 
 ## 2026-11-13 — P1/P2 umgesetzt: Inventar korrigiert, Benchmark pro Stufe
@@ -236,9 +239,10 @@ einer Stufenmessung machen (P2).
   TestCase-Methoden, `test_process_audio.py` meldete 5 statt 14,
   `test_capture.py` 0 statt 6; (b) drei Suiten des Hauptzweigs standen nicht
   in der Runner-Liste und liefen nie.
-- Korrigierter Stand: **177 Testfunktionen in 13 Suiten**.
+- Zwischenstand nach diesem Eintrag: **177 Testfunktionen in 13 Suiten**.
 - `ci_note` sagte „sieben von neun", `known_risks` „8 von 9" — beide falsch;
-  zutreffend sind **8 von 13** Suiten mit Laufzeitvoraussetzung.
+  zutreffend waren damals **8 von 13**, heute **8 von 19** Suiten mit
+  Laufzeitvoraussetzung (Fortschreibung unten).
 
 ### Läufe (Sandbox, ohne Modelle, GPU, Mikrofon)
 
@@ -250,12 +254,88 @@ einer Stufenmessung machen (P2).
   in der Sandbox), sauber ausgewiesen statt als 0 ms
 - `python3 scripts/benchmark.py --live` → RC 2, „nicht durchgeführt"
 
-### Offen
+### Offen zum Zeitpunkt des Eintrags
 
 - **P0** — Nachmessung der Sprachlatenz auf der Referenzmaschine. In dieser
   Umgebung nicht durchführbar (keine GPU, kein Mikrofon, keine Modelle).
-- **P3–P6** — Eval-Harness, Lifecycle-Manager, Rollen-Registry,
-  MUSCAL-CLI. Bleiben freigabepflichtig; `prohibitions` unverändert.
+- **P3–P6** — Eval-Harness, Lifecycle-Manager, Rollen-Registry und MUSCAL-CLI
+  waren zu diesem Zeitpunkt noch nicht umgesetzt. Fortgeschrieben im nächsten
+  Eintrag. `prohibitions` blieben unverändert.
+
+## 2026-11-13 — P3–P6 umgesetzt: Eval, Lifecycle, Rollen, MUSCAL CLI/HTTP
+
+### Ziel
+
+Die ADR-002-Werkzeuge so weit liefern, wie es ohne GPU, Backend, Mikrofon und
+Modelle beweisbar ist — ohne eine Hardware-Abnahme zu behaupten und ohne die
+`prohibitions` oder `current.hard_stop` anzutasten.
+
+### Änderungen
+
+- `config/roles.json` (maschinelle Quelle) und generiertes
+  `config/roles.yaml` (ADR-002 D2) mit vier Rollen; `evals/roles/*.json` mit
+  vier Rollen-Suiten; `evals/golden.json` generiert. Generatoren:
+  `scripts/build_golden.py`, `scripts/build_roles.py`.
+- `scripts/eval.py`: Golden Set, Grader inklusive `min_list_len`, `--dry-run`,
+  `--live --model`, `--compare`, p50/p95, Ressourcen-Snapshot mit expliziter
+  „nicht gemessen"-Markierung.
+- `config/model_budget.json` und `scripts/modelsctl.py`: dreivertiges
+  VRAM-Urteil (`fits`/`too_big`/`unknown`), `budget`, `plan`, `status`,
+  `health`, `switch`, `load`, `start`, `stop`, `unload`. Prozesse werden nur an
+  `start.sh`/`stop.sh` delegiert; Ollama bleibt unangetastet.
+- `scripts/roles.py`: Registry-Validierung, JSON↔YAML-Abgleich, Rollenwechsel
+  `router → planner` ohne Modellwechsel. Invariante: Auditor hat kein
+  Schreibrecht, mutierende Tools brauchen `requires_approval`.
+- `scripts/muscal.py`: sequenzielle Kette als CLI und HTTP (`serve`), Audit-Log,
+  STOP-Datei, Schrittgrenze, Staging-Guard, Schema-Prüfung pro Rolle. Kein
+  Desktop-Adapter, keine parallelen Agenten, keine Cloud-Inferenz.
+- `scripts/check_docs.py`: prüft aktuelle Zahlen, Grenzen und generierte
+  Artefakte über SSOT, Regression Contract, Bootstrap, ADR, dieses Protokoll
+  und den CI-Workflow hinweg.
+- Sechs neue Testsuiten (`test_eval.py`, `test_modelsctl.py`, `test_roles.py`,
+  `test_muscal.py`, `test_muscal_http.py`, `test_doc_consistency.py`) mit
+  zusammen 130 Testfunktionen, alle ohne Backend und ohne Drittpakete.
+- `scripts/run_all_tests.py`, `docs/GUIALITA_STATE.yaml`,
+  `docs/BASELINES/REGRESSION_CONTRACT.md`, `docs/GUIALITA_SESSION_BOOTSTRAP.md`,
+  `docs/adr/ADR-002-agent-orchestration.md`, `.gitignore`,
+  `.github/workflows/state-consistency.yml` und `README.md` nachgezogen.
+
+### Prüfungen (Sandbox, ohne Hardware)
+
+```text
+python3 scripts/eval.py --dry-run                 → 19 Aufgaben, alle Urteile wie erwartet
+python3 scripts/eval.py --dry-run --all-suites    → 4 Rollen-Suiten OK
+python3 scripts/build_golden.py --check           → OK
+python3 scripts/build_roles.py --check            → OK
+python3 scripts/roles.py validate --check-mirror  → OK
+python3 scripts/modelsctl.py budget              → UNKNOWN bleibt UNKNOWN, RC 0
+python3 scripts/muscal.py run "..." --dry-run     → Kette ok, RC 0
+python3 scripts/muscal.py serve (Thread-Test)     → /health, /pipelines, /guard, POST /run OK
+python3 scripts/check_docs.py                    → OK
+python3 scripts/run_all_tests.py --check-state    → Keine Abweichung, RC 0
+python3 scripts/run_all_tests.py                  → 7 PASS, 12 NOT EXECUTED, 0 FAIL
+```
+
+### Befunde
+
+- Verbindlich sind **307 Testfunktionen in 19 Suiten**; `--check-state`
+  gleicht Runner und SSOT maschinell ab.
+- Acht Suiten brauchen weiterhin Backend, Modelle, GPU, Mikrofon oder
+  espeak-ng; vier weitere brauchen nur die Python-Abhängigkeiten. Ohne diese
+  Pakete meldet der vollständige Sandbox-Lauf 7 PASS, 12 NOT EXECUTED, 0 FAIL.
+  Kein Test aus einer NOT-EXECUTED-Suite wurde als bestanden gezählt.
+- `evals/golden.json` und `config/roles.yaml` sind generiert; ihre Quellen
+  können nicht mehr unbemerkt auseinanderlaufen.
+- MUSCAL bleibt CLI/HTTP, kein Desktop-Adapter. `prohibitions`,
+  `current.hard_stop: true` und `next_authorized_phase: NONE` sind unverändert.
+
+### Offen
+
+- **P0** — Voice-Turn-Nachmessung auf der Referenzmaschine.
+- **Live-Abnahme** — `eval.py --live/--compare`, `modelsctl.py
+  switch/start/stop`, `muscal.py --live`, HTTP ohne `dry_run`, echte
+  VRAM-Belegung und alle GPU-Latenzen. Implementiert, aber ohne Hardware
+  nicht gemessen.
 
 ## Nachvollziehbarkeitsregel
 

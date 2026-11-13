@@ -33,6 +33,9 @@ geführt.
   Audio-Runtimes nicht verfügbar sind
 - Echter Mikrofon-/Lautsprechertest: erforderlich für Hardware-Abnahme
 - Vision/Desktop-Control: nicht als kanonische Produktionsfunktion aktiviert
+- ADR-002-Werkzeuge (Eval, VRAM-Budget, Rollen, MUSCAL CLI/HTTP): als
+  Selbsttests implementiert; kein Phasenstatus, keine produktive
+  Orchestrierungsschicht, kein Desktop-Adapter
 
 ## Änderungsregel
 

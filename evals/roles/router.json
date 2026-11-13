@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "version": 1,
+  "role": "router",
+  "graders": [
+    "equals",
+    "one_of",
+    "contains",
+    "must_not_contain",
+    "regex",
+    "json_keys",
+    "one_of_field",
+    "min_list_len",
+    "non_empty",
+    "max_latency_ms"
+  ],
+  "note": [
+    "Rollen-Eval fuer router (ADR-002, D2/P5).",
+    "Enthaelt positive Aufgaben und negative Kontrollen. Negativ bedeutet:",
+    "das Harness MUSS diese Antwort als FAIL bewerten."
+  ],
+  "tasks": [
+    {
+      "id": "router-chat",
+      "role": "router",
+      "kind": "positive",
+      "prompt": "Hallo, wie geht es dir?",
+      "expect": {
+        "equals": "chat"
+      },
+      "stub": {
+        "response": "chat",
+        "outcome": "pass"
+      }
+    },
+    {
+      "id": "router-code",
+      "role": "router",
+      "kind": "positive",
+      "prompt": "Bitte aendere die Retrieval-Funktion, sie laedt die ganze Tabelle.",
+      "expect": {
+        "equals": "code"
+      },
+      "stub": {
+        "response": "code",
+        "outcome": "pass"
+      }
+    },
+    {
+      "id": "router-audit",
+      "role": "router",
+      "kind": "positive",
+      "prompt": "Pruefe bitte, ob die Tests noch gruen sind.",
+      "expect": {
+        "equals": "audit"
+      },
+      "stub": {
+        "response": "audit",
+        "outcome": "pass"
+      }
+    },
+    {
+      "id": "router-plan",
+      "role": "router",
+      "kind": "positive",
+      "prompt": "Wie wuerdest du die Latenz der Sprachschleife senken?",
+      "expect": {
+        "one_of": [
+          "plan",
+          "code"
+        ]
+      },
+      "stub": {
+        "response": "plan",
+        "outcome": "pass"
+      }
+    },
+    {
+      "id": "router-wrong-label",
+      "role": "router",
+      "kind": "negative-control",
+      "prompt": "Pruefe bitte, ob die Tests noch gruen sind.",
+      "expect": {
+        "equals": "audit"
+      },
+      "stub": {
+        "response": "planning",
+        "outcome": "fail"
+      },
+      "reason": "Falsches Label muss als FAIL erkannt werden."
+    },
+    {
+      "id": "router-gossip",
+      "role": "router",
+      "kind": "negative-control",
+      "prompt": "Hallo!",
+      "expect": {
+        "equals": "chat"
+      },
+      "stub": {
+        "response": "chat, aber eigentlich ist das eine Begruessung, und ich wuerde sagen: chat.",
+        "outcome": "fail"
+      },
+      "reason": "Ein Label mit Erklaerung ist kein Label. Der Router-Prompt verlangt genau eines."
+    }
+  ]
+}

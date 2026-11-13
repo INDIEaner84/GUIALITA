@@ -8,10 +8,13 @@
 # Belege bzw. Erläuterungen. Wenn sie dieser Datei widersprechen, gilt diese
 # Datei. Phase-Reports werden nach ihrer Erstellung NICHT mehr geändert.
 #
-# Aktualisiert: 2026-11-13 (Testzahlen korrigiert: 141 -> 167 Funktionen,
-#               9 -> 12 Suiten. Ursache: fehlerhafter Zähler in
-#               scripts/run_all_tests.py und drei nie ausgeführte Suiten.
-#               Nachweis: scripts/run_all_tests.py --check-state)
+# Aktualisiert: 2026-11-13 (P3–P6: **307 Testfunktionen in 19 Suiten**.
+#               Eval-Golden-Sets, Rollen-Mirror, VRAM-Budget, Lifecycle,
+#               MUSCAL CLI/HTTP und Dokumentenprüfung als Selbsttests
+#               umgesetzt. Nachweis: --check-state, check_docs.py, CI.)
+#               Davor am selben Tag: P1/P2 korrigierten 141 -> 177
+#               Testfunktionen und 9 -> 13 Suiten. P0 und jede Live-
+#               Hardwaremessung bleiben offen.
 #               Davor: 2026-08-22 (Merge arena/01a01e70 — Portabilität,
 #               Diagnose, Test-Härtung; kombiniert mit M5 Audit/Export)
 
@@ -252,8 +255,8 @@ reproducibility:
 testing:
   status: DOCUMENTED
   runner: scripts/run_all_tests.py
-  test_functions_total: 177
-  suites: 13
+  test_functions_total: 307
+  suites: 19
   counting_method: >-
     AST — gezählt wird jede Funktion, deren Name mit "test" beginnt,
     unabhängig von Einrückung oder TestCase-Klasse.
@@ -267,7 +270,7 @@ testing:
     TestCase-Klassen. Modulweite Tests fehlten komplett.
   correction_2026_11_13:
     detection: "scripts/run_all_tests.py --check-state"
-    effect: "141 -> 177 Testfunktionen, 9 -> 13 Suiten"
+    effect: "141 -> 177 -> 307 Testfunktionen, 9 -> 13 -> 19 Suiten"
     causes:
       - "Zähler-Regex erfasste nur eingerückte Methoden: test_process_audio.py meldete 5 statt 14, test_capture.py 0 statt 6"
       - "test_audit.py, test_chat_service.py und test_audio_contract.py existierten und waren hier dokumentiert, standen aber nicht in der Runner-Liste — sie liefen nie über den kanonischen Lauf"
@@ -275,6 +278,33 @@ testing:
       - "count_test_functions nutzt jetzt ast statt Regex"
       - "die drei Hauptzweig-Suiten sind in SUITES aufgenommen"
       - "--check-state gleicht Runner und dieser Datei automatisch ab"
+  extension_2026_11_13:
+    scope: "ADR-002 P3–P6 als prüfbare CLI/HTTP-Werkzeuge, keine produktive Orchestrierungsschicht"
+    canonical_total: "**307 Testfunktionen in 19 Suiten**"
+    added_suites:
+      - "test_eval.py: 33 — Grader, Golden Set, p50/p95, Reportvergleich"
+      - "test_modelsctl.py: 25 — dreivertiges VRAM-Urteil, Plan, start/stop-Delegation"
+      - "test_roles.py: 27 — Registry-Invarianten, YAML-Mirror, Rollenwechsel"
+      - "test_muscal.py: 26 — Kette, Guard, STOP, Audit-Log"
+      - "test_muscal_http.py: 14 — /health, /pipelines, /guard, POST /run"
+      - "test_doc_consistency.py: 5 — aktuelle Zahlen und Grenzen in den Dokumenten"
+    generated_artifacts:
+      - "evals/golden.json ← evals/roles/*.json (scripts/build_golden.py --check)"
+      - "config/roles.yaml ← config/roles.json (scripts/build_roles.py --check)"
+    measured_in_sandbox:
+      - "python3 scripts/eval.py --dry-run: 19 Aufgaben, alle Urteile wie erwartet"
+      - "python3 scripts/eval.py --dry-run --all-suites: 4 Rollen-Suiten OK"
+      - "python3 scripts/build_golden.py --check: OK"
+      - "python3 scripts/build_roles.py --check: OK"
+      - "python3 scripts/roles.py validate --check-mirror: OK"
+      - "python3 scripts/check_docs.py: OK"
+      - "python3 scripts/run_all_tests.py --check-state: Keine Abweichung"
+      - "python3 scripts/run_all_tests.py: 7 PASS, 12 NOT EXECUTED, 0 FAIL"
+    not_measured:
+      - "P0: Voice-Turn-Nachmessung braucht Referenzmaschine, GPU, Mikrofon und Modelle"
+      - "scripts/eval.py --live und --compare brauchen ein laufendes Backend"
+      - "scripts/modelsctl.py switch/start/stop messen erst mit echter Runtime"
+      - "MUSCAL --live und HTTP ohne dry_run sind ohne Modell nicht bewertbar"
   nested_suite_calls: "standardmäßig deaktiviert (GUIALITA_TEST_NESTED=1 reaktiviert)"
   grading_rule: >
     Tests aus einer NOT_EXECUTED-Suite zählen nicht als bestanden, auch wenn
@@ -293,13 +323,20 @@ testing:
     test_chat_service.py: {tests: 3, requires: deps}
     test_audio_contract.py: {tests: 4, requires: deps}
     test_benchmark.py: {tests: 10, requires: none}
+    test_eval.py: {tests: 33, requires: none}
+    test_modelsctl.py: {tests: 25, requires: none}
+    test_roles.py: {tests: 27, requires: none}
+    test_muscal.py: {tests: 26, requires: none}
+    test_muscal_http.py: {tests: 14, requires: none}
+    test_doc_consistency.py: {tests: 5, requires: none}
   suite_inventory_note: >
-    test_benchmark.py ist am 2026-11-13 neu hinzugekommen (10 Tests, reine
-    Standardbibliothek) und prüft die Statistik des Benchmarks, nicht
-    Messwerte. test_capture.py zählt 6, weil dort sechs Funktionen test3_… bis test10_…
-    stehen; sie werden aus main() aufgerufen und brauchen ein Mikrofon. Die
-    frühere Angabe "0 Tests, keine test_*-Methoden" war falsch — es sind
-    Funktionen, keine Methoden.
+    Der zweite Lauf am 2026-11-13 hat sechs Suiten für ADR-002 P3–P6
+    hinzugefügt; alle sechs sind reine Standardbibliothek. test_benchmark.py
+    (10 Tests) war bereits im ersten Lauf neu und prüft die Statistik des
+    Benchmarks, nicht Messwerte. test_capture.py zählt 6, weil dort sechs
+    Funktionen test3_… bis test10_… stehen; sie werden aus main() aufgerufen
+    und brauchen ein Mikrofon. Die frühere Angabe "0 Tests, keine
+    test_*-Methoden" war falsch — es sind Funktionen, keine Methoden.
   additional_mainline_suites: >
     Aufgelöst. test_audit.py, test_chat_service.py und test_audio_contract.py
     sind seit 2026-11-13 Teil von suite_inventory und des kanonischen Laufs.
@@ -312,14 +349,16 @@ testing:
     Pakete sonst als FAIL (ImportError) statt als NOT_EXECUTED erschienen.
   ci_capable: false
   ci_note: >
-    Acht von dreizehn Suiten benötigen mehr als die Python-Abhängigkeiten:
+    Acht von neunzehn Suiten benötigen mehr als die Python-Abhängigkeiten:
     ein laufendes Backend, Modelle, GPU, Mikrofon oder espeak-ng. Ohne Server
-    und ohne Modell laufen fünf Suiten — test_benchmark.py sogar ohne
-    installierte Pakete, die übrigen vier (test_voice_activation.py,
-    test_audit.py, test_chat_service.py, test_audio_contract.py) nach
-    Installation der Abhängigkeiten. Die frühere Formulierung "nur
-    test_voice_activation.py läuft ohne Voraussetzungen" war in beide
-    Richtungen falsch.
+    und ohne Modell laufen elf Suiten — sieben davon sogar ohne installierte
+    Pakete (test_benchmark.py sowie die sechs ADR-002-Suiten), die übrigen vier
+    (test_voice_activation.py, test_audit.py, test_chat_service.py,
+    test_audio_contract.py) nach Installation der Abhängigkeiten. In einer
+    nackten Sandbox ohne pydantic/fastapi erscheinen zusätzlich diese vier als
+    NOT_EXECUTED; der vollständige Lauf meldet dort 7 PASS, 12 NOT EXECUTED,
+    0 FAIL. Die frühere Formulierung "nur test_voice_activation.py läuft ohne
+    Voraussetzungen" war in beide Richtungen falsch.
 
 # ------------------------------------------------------------
 # Verifizierte Umgebung (Referenzmaschine)
@@ -387,7 +426,7 @@ freeze_policy:
   rationale: >
     Freeze v1 fror nicht Verhalten ein, sondern Verbesserung. Er entstand, als
     es keine verlässliche Testgrundlage gab — Einfrieren ersetzte das Prüfen.
-    Mit scripts/run_all_tests.py (136 Tests, 9 Suiten, jede genau einmal) ist
+    Mit scripts/run_all_tests.py (307 Tests, 19 Suiten, jede genau einmal) ist
     Prüfen möglich. Damit tritt an die Stelle einer Erlaubnis-Zeremonie ein
     Nachweis. Zusätzlich fror v1 Code ein, dessen Qualität nie geprüft war
     (Feature-Hashing als "semantisches" Retrieval, 53 fest eingetragene
@@ -447,17 +486,22 @@ known_issues:
   - "Audio-Device-Index ist systemabhängig (--list-devices)"
 
 known_risks:
-  - "8 von 13 Testsuiten benötigen Backend, Modelle, GPU, Mikrofon oder espeak-ng — nicht CI-fähig"
+  - "8 von 19 Testsuiten benötigen Backend, Modelle, GPU, Mikrofon oder espeak-ng — nicht CI-fähig"
+  - "In nackter CI/Sandbox ohne requirements.txt: 12 von 19 Suiten NOT EXECUTED; der Workflow führt bewusst die 7 Standardbibliothek-Suiten aus"
   - "VAD-Schwellen sind umgebungsabhängig"
   - "Runner-Builds auf HuggingFace können sich ändern (WIP)"
   - "Plattenplatz begrenzt — keine großen Downloads ohne Freigabe"
 
 # ------------------------------------------------------------
-# Zielarchitektur (NICHT implementiert)
+# Zielarchitektur (produktive Schicht weiterhin PLANNED)
 # ------------------------------------------------------------
 future_target:
   status: PLANNED
   note: >
     MUSCAL soll die übergeordnete Agenten-/Orchestrierungsschicht werden,
-    GUIALITA bleibt die lokale Runtime darunter. Nichts davon ist
-    implementiert; es ist ausschließlich Zielbild, kein Zustand.
+    GUIALITA bleibt die lokale Runtime darunter. Das Zielbild bleibt PLANNED:
+    keine produktive Orchestrierungsschicht, kein Desktop-Adapter, keine
+    parallelen Agenten. Als Werkzeuge implementiert und im Trockenlauf geprüft
+    sind lediglich Eval-Harness, VRAM-Budget, Rollen-Registry und eine
+    sequenzielle CLI/HTTP-Kette (ADR-002, Abschnitt 5a). Das ist kein
+    Phasenstatus; current.hard_stop und prohibitions sind unverändert.

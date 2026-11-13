@@ -3,15 +3,19 @@ name: State Consistency
 # Warum dieser Workflow existiert
 # -------------------------------
 # docs/GUIALITA_STATE.yaml ist die einzige Statusquelle des Projekts. Sie war
-# mehrfach zahlenmäßig falsch (Testzahlen 108/79/71/145/141). Diese Prüfung
-# läuft ohne Backend, ohne GPU und ohne Modelle — sie ist damit die einzige
-# Prüfung des Repos, die in CI überhaupt belastbar grün werden kann.
+# mehrfach zahlenmäßig falsch (Testzahlen 108/79/71/145/141). Diese Prüfungen
+# laufen ohne Backend, ohne GPU und ohne Modelle: sieben Suiten bestehen nur
+# aus Standardbibliothek und können in CI belastbar grün werden. Acht weitere
+# Suiten bleiben bewusst NOT_EXECUTED, nicht PASS.
 #
 # Geprüft wird:
 #   1. Inventar des Testrunners gegen `suite_inventory` in der SSOT.
-#   2. Die Benchmark-Statistik (Perzentile, n=0-Verhalten).
+#   2. Alle sieben Standardbibliothek-Suiten.
+#   3. Generierte Artefakte: Golden Set und Rollen-YAML.
+#   4. Fachliche Selbsttests der ADR-002-Werkzeuge.
+#   5. Aktuelle Zahlen und Grenzen in den Dokumenten.
 #
-# Siehe docs/adr/ADR-002-agent-orchestration.md, Entscheidung D7.
+# Siehe docs/adr/ADR-002-agent-orchestration.md, Entscheidung D7 und 5a.
 
 on:
   push:
@@ -23,7 +27,7 @@ permissions:
 
 jobs:
   inventory:
-    name: Inventar ↔ SSOT
+    name: Inventar, Werkzeuge ↔ SSOT
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -39,5 +43,29 @@ jobs:
       - name: Testinventar gegen docs/GUIALITA_STATE.yaml abgleichen
         run: python3 scripts/run_all_tests.py --check-state
 
-      - name: Benchmark-Statistik prüfen
-        run: python3 tests/test_benchmark.py
+      - name: Standardbibliothek-Suiten ausführen
+        run: >-
+          python3 scripts/run_all_tests.py --only
+          test_benchmark test_eval test_modelsctl test_roles
+          test_muscal test_doc_consistency
+
+      - name: Golden Set gegen Rollen-Suiten abgleichen
+        run: python3 scripts/build_golden.py --check
+
+      - name: Rollen-YAML gegen JSON-Quelle abgleichen
+        run: python3 scripts/build_roles.py --check
+
+      - name: Rollen-Registry validieren
+        run: python3 scripts/roles.py validate --check-mirror
+
+      - name: Eval-Harness im Trockenlauf prüfen
+        run: python3 scripts/eval.py --dry-run --all-suites
+
+      - name: VRAM-Budget ohne GPU prüfen
+        run: python3 scripts/modelsctl.py budget
+
+      - name: MUSCAL-Kette im Trockenlauf prüfen
+        run: python3 scripts/muscal.py run "CI-Selbsttest" --dry-run
+
+      - name: Dokumenten-Konsistenz prüfen
+        run: python3 scripts/check_docs.py

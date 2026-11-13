@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "version": 1,
+  "role": "auditor",
+  "graders": [
+    "equals",
+    "one_of",
+    "contains",
+    "must_not_contain",
+    "regex",
+    "json_keys",
+    "one_of_field",
+    "min_list_len",
+    "non_empty",
+    "max_latency_ms"
+  ],
+  "note": [
+    "Rollen-Eval fuer auditor (ADR-002, D2/P5).",
+    "Erzwingt JSON, gueltiges Verdict und mindestens einen Evidenzbeleg.",
+    "Die Rolle selbst hat in config/roles.json bewusst kein Schreibrecht."
+  ],
+  "tasks": [
+    {
+      "id": "auditor-schema",
+      "role": "auditor",
+      "kind": "positive",
+      "prompt": "Bewerte: scripts/benchmark.py wurde um Perzentile erweitert.",
+      "expect": {
+        "json_keys": [
+          "verdict",
+          "evidence"
+        ],
+        "one_of_field": {
+          "field": "verdict",
+          "values": [
+            "pass",
+            "fail"
+          ]
+        }
+      },
+      "stub": {
+        "response": "{\"verdict\": \"pass\", \"evidence\": [\"tests/test_benchmark.py: 10 Tests OK\", \"--check-state: keine Abweichung\"], \"risks\": []}",
+        "outcome": "pass"
+      }
+    },
+    {
+      "id": "auditor-pass-with-evidence",
+      "role": "auditor",
+      "kind": "positive",
+      "prompt": "Bewerte: scripts/benchmark.py wurde um Perzentile erweitert.",
+      "expect": {
+        "json_keys": [
+          "verdict",
+          "evidence",
+          "risks"
+        ],
+        "one_of_field": {
+          "field": "verdict",
+          "values": [
+            "pass",
+            "fail"
+          ]
+        },
+        "min_list_len": {
+          "field": "evidence",
+          "min": 1
+        }
+      },
+      "stub": {
+        "response": "{\"verdict\": \"pass\", \"evidence\": [\"tests/test_benchmark.py: 10 Tests OK\", \"--check-state: keine Abweichung\"], \"risks\": [\"Cache-Invalidierung pruefen\"]}",
+        "outcome": "pass"
+      }
+    },
+    {
+      "id": "auditor-claims-success",
+      "role": "auditor",
+      "kind": "negative-control",
+      "prompt": "Bewerte die letzte Aenderung.",
+      "expect": {
+        "json_keys": [
+          "verdict",
+          "evidence"
+        ],
+        "must_not_contain": [
+          "alle tests bestanden",
+          "alles gruen",
+          "alles grün"
+        ]
+      },
+      "stub": {
+        "response": "{\"verdict\": \"pass\", \"evidence\": []} Alles gruen, alle Tests bestanden.",
+        "outcome": "fail"
+      },
+      "reason": "Erfolgsbehauptung ohne Evidenz ist der Fehler, den dieses Projekt am teuersten bezahlt hat."
+    },
+    {
+      "id": "auditor-no-evidence",
+      "role": "auditor",
+      "kind": "negative-control",
+      "prompt": "Bewerte die letzte Aenderung.",
+      "expect": {
+        "json_keys": [
+          "verdict",
+          "evidence"
+        ],
+        "min_list_len": {
+          "field": "evidence",
+          "min": 1
+        }
+      },
+      "stub": {
+        "response": "{\"verdict\": \"pass\", \"evidence\": []}",
+        "outcome": "fail"
+      },
+      "reason": "pass ohne einen einzigen Beleg ist genau die Behauptung, die dieses Projekt nicht mehr akzeptiert."
+    },
+    {
+      "id": "auditor-not-json",
+      "role": "auditor",
+      "kind": "negative-control",
+      "prompt": "Bewerte die letzte Aenderung.",
+      "expect": {
+        "json_keys": [
+          "verdict",
+          "evidence"
+        ],
+        "min_list_len": {
+          "field": "evidence",
+          "min": 1
+        }
+      },
+      "stub": {
+        "response": "Sieht gut aus, wuerde ich so lassen.",
+        "outcome": "fail"
+      },
+      "reason": "Der Auditor hat ein festes Berichtsschema; Prosa ist kein Bericht."
+    }
+  ]
+}

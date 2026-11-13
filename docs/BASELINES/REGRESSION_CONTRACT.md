@@ -44,7 +44,13 @@ DIAGNOSTICS_REGRESSION = FAIL if GET /diagnostics broken or paths unresolved
 | `tests/test_chat_service.py` | 3 | Python-Abhängigkeiten | ChatService-Flow mit Fake-LLM |
 | `tests/test_audio_contract.py` | 4 | Python-Abhängigkeiten | Audio-Schema-Validierung |
 | `tests/test_benchmark.py` | 10 | keine | Benchmark-Statistik (Perzentile, n=0) |
-| **Summe** | **177** | | **vollständige Regression** |
+| `tests/test_eval.py` | 33 | keine | Eval-Grader, Golden Set, p50/p95, Reportvergleich |
+| `tests/test_modelsctl.py` | 25 | keine | VRAM-Budget, Lifecycle-Delegation, dreivertiges Urteil |
+| `tests/test_roles.py` | 27 | keine | Rollen-Invarianten, YAML-Mirror, Rollenwechsel |
+| `tests/test_muscal.py` | 26 | keine | Sequenzielle Kette, Guard, STOP, Audit-Log |
+| `tests/test_muscal_http.py` | 14 | keine | HTTP `/health`, `/pipelines`, `/guard`, `POST /run` |
+| `tests/test_doc_consistency.py` | 5 | keine | Aktuelle Zahlen und Grenzen in den Dokumenten |
+| **Summe** | **307** | | **vollständige Regression** |
 
 ### Korrektur der Testzahl (2026-08-21)
 
@@ -56,16 +62,19 @@ Tests wurden mehrfach gezählt.
 
 Die damals für richtig gehaltene Zahl war **141 Testfunktionen in 9 Suiten**
 (136 bei der Korrektur, +5 durch die Tests für `/diagnostics`).
-**Überholt** — siehe Korrektur vom 2026-11-13: 167 Funktionen in 12 Suiten.
+**Überholt** — siehe die beiden Korrektur- und Erweiterungsabschnitte vom
+2026-11-13.
 
 Verbindlicher Lauf:
 
 ```bash
-python3 scripts/run_all_tests.py          # jede Suite genau einmal
-python3 scripts/run_all_tests.py --list   # Inventar ohne Ausführung
+python3 scripts/run_all_tests.py               # jede Suite genau einmal
+python3 scripts/run_all_tests.py --list        # Inventar ohne Ausführung
+python3 scripts/run_all_tests.py --check-state # Runner ↔ SSOT
+python3 scripts/check_docs.py                 # Zahlen in allen aktuellen Dokumenten
 ```
 
-### Korrektur der Testzahl (2026-11-13)
+### Korrektur der Testzahl (2026-11-13, erster Lauf)
 
 Die oben genannte Zahl **141 in 9 Suiten** war ebenfalls falsch. Sie hatte drei
 Ursachen:
@@ -81,10 +90,10 @@ Ursachen:
 3. **Die Voraussetzungsspalte war zu grob.** Fünf Suiten brauchen zusätzlich
    zur laufenden Runtime ein geladenes LLM, nicht nur ein erreichbares Backend.
 
-Maßgeblich sind jetzt **177 Testfunktionen in 13 Suiten** (167 aus der
-Korrektur, +10 für `test_benchmark.py`, neu am 2026-11-13). Der Zähler arbeitet
-mit `ast`, die drei Suiten sind im Runner enthalten, und der Abgleich ist
-maschinell prüfbar:
+Zwischenstand nach dem ersten Lauf: **177 Testfunktionen in 13 Suiten** (167
+aus der Korrektur, +10 für `test_benchmark.py`, neu am 2026-11-13). Der Zähler
+arbeitet mit `ast`, die drei Suiten sind im Runner enthalten, und der Abgleich
+ist maschinell prüfbar:
 
 ```bash
 python3 scripts/run_all_tests.py --check-state   # Exitcode 1 bei Abweichung
@@ -94,6 +103,34 @@ python3 scripts/run_all_tests.py --check-state   # Exitcode 1 bei Abweichung
 `docs/GUIALITA_STATE.yaml`. Ein grüner Lauf dieses Abgleichs ist die
 Voraussetzung dafür, dass die Zahlen in beiden Dokumenten als belastbar gelten
 (siehe `docs/adr/ADR-002-agent-orchestration.md`, Entscheidung D7).
+
+### Erweiterung 2026-11-13 (zweiter Lauf, ADR-002 P3–P6)
+
+Für Eval-Harness, VRAM-Budget/Lifecycle, Rollen-Registry, MUSCAL CLI/HTTP und
+Dokumenten-Konsistenz sind sechs neue Suiten mit **130 Testfunktionen**
+hinzugekommen. Alle sechs laufen ohne Backend, GPU, Modell oder installierte
+Pakete. Maßgeblich sind jetzt **307 Testfunktionen in 19 Suiten** —
+177 aus dem ersten Lauf + 130 aus dem zweiten.
+
+Gemessen in der Sandbox:
+
+```text
+python3 scripts/run_all_tests.py --check-state → Keine Abweichung, RC 0
+python3 scripts/run_all_tests.py               → 7 PASS, 12 NOT EXECUTED, 0 FAIL
+python3 scripts/eval.py --dry-run              → 19 Aufgaben, alle Urteile wie erwartet
+python3 scripts/eval.py --dry-run --all-suites → 4 Rollen-Suiten OK
+python3 scripts/build_golden.py --check        → OK
+python3 scripts/build_roles.py --check         → OK
+python3 scripts/roles.py validate --check-mirror → OK
+python3 scripts/check_docs.py                  → OK
+```
+
+`NOT EXECUTED` bleibt `NOT EXECUTED`: die acht Suiten mit Backend-, Modell-,
+GPU-, Mikrofon- oder espeak-ng-Bedarf **und** die vier `deps`-Suiten ohne
+installierte pydantic/fastapi wurden in der Sandbox als 12 NOT EXECUTED
+geführt und nicht als bestanden gezählt. Live-Pfade von `eval.py`,
+`modelsctl.py` und `muscal.py` sind implementiert, aber ohne
+Referenzmaschine **nicht abgenommen**.
 
 Verschachtelte Suite-Aufrufe sind standardmäßig deaktiviert
 (`GUIALITA_TEST_NESTED=1` stellt das alte Verhalten wieder her).

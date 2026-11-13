@@ -1,6 +1,8 @@
 # ADR-002 — Agenten-Orchestrierung (MUSCAL), Rollenmodell und Modell-Lifecycle
 
-**Status**: PROPOSED — **nicht autorisiert, nicht implementiert**
+**Status**: PROPOSED — Phasenstatus und `prohibitions` unverändert. Die
+P3–P6-Werkzeuge sind als CLI/HTTP-Selbsttests umgesetzt (Abschnitt 5a), aber
+keine produktive Orchestrierungsschicht. `current.hard_stop` bleibt `true`.
 **Datum**: 2026-11-13
 **Kontext**: Analysefrage zu Agentensteuerung ohne IDE, MUSCAL-Orchestrierung
 und LoRA-Adaptern als Agenten-Identität
@@ -25,14 +27,18 @@ aufgehoben.
 
 ---
 
-## 1. Bestandsaufnahme (Ist-Zustand, belegt)
+## 1. Bestandsaufnahme (Ist-Zustand bei Entwurf, belegt)
+
+Die folgende Tabelle ist die Momentaufnahme **vor P1/P2 und vor den
+Werkzeugen aus Abschnitt 5a**. Sie bleibt als Beleg stehen; die heutigen
+Zahlen stehen in `docs/GUIALITA_STATE.yaml`.
 
 Die Ausgangsannahme der Frage lautete, MUSCAL betreibe bereits eine
-Agenten-Orchestrierung. Das ist nicht der Fall. Belege:
+Agenten-Orchestrierung. Das war zum Entwurfszeitpunkt nicht der Fall. Belege:
 
 | Fähigkeit | Erwartung aus der Frage | Beleg im Repo | Befund |
 |---|---|---|---|
-| Orchestrierung | vorhanden | `GUIALITA_STATE.yaml`, `future_target`: `status: PLANNED`, „Nichts davon ist implementiert" | **nicht vorhanden** |
+| Orchestrierung | vorhanden | `GUIALITA_STATE.yaml`, `future_target`: `status: PLANNED`, damals „Nichts davon ist implementiert" | **zum Entwurfszeitpunkt nicht vorhanden** |
 | Modelle laden/wechseln | Lifecycle-Manager | `config/models.yaml` enthält nur Pfade + Parameter | **nicht vorhanden** |
 | Modelle starten | pro Rolle | `scripts/start.sh` startet Backend + Default-Modell | **teilweise** (ein Modell) |
 | Trainieren | Pipeline | kein Trainingscode, kein Korpus, keine Traces | **nicht vorhanden** |
@@ -43,11 +49,11 @@ Agenten-Orchestrierung. Das ist nicht der Fall. Belege:
 Zwei Nebenbefunde, die für die Reihenfolge entscheidend sind:
 
 **a) Die Zahl der nicht-CI-fähigen Suiten widerspricht sich in der SSOT.**
-`testing.ci_note` sagt „Sieben von neun Suiten benötigen ein laufendes Backend,
-Modelle, GPU, Mikrofon oder espeak-ng"; `known_risks` sagt „8 von 9". Die
-Tabelle in `docs/BASELINES/REGRESSION_CONTRACT.md` löst das auf: nur
-`tests/test_voice_activation.py` hat „keine" Voraussetzung. Also **8 von 9**,
-und die `ci_note` ist falsch.
+Zum Entwurfszeitpunkt sagte `testing.ci_note` „Sieben von neun", `known_risks`
+„8 von 9"; die Tabelle in `docs/BASELINES/REGRESSION_CONTRACT.md` belegte
+**8 von 9**. Nach P1 waren es 8 von 13, nach den P3–P6-Suiten **8 von 19**.
+Die verbindlichen Zahlen stehen heute in der SSOT: **307 Testfunktionen in 19
+Suiten**. Abschnitt 5a führt die Korrektur aus.
 
 **b) Der Benchmark misst nicht, was die Frage unterstellt.**
 `scripts/benchmark.py` schreibt selbst: „Live chat is intentionally not run
@@ -100,7 +106,8 @@ ausdrücklich nicht** als Mittel der Rollenidentität eingesetzt.
 2. **Datenlage.** Ein belastbarer Rollen-LoRA braucht einige hundert saubere
    Beispiele pro Rolle. Im Repo existieren **null** Trainings-Traces.
 3. **Wartung.** Jedes Basis-Modell-Upgrade invalidiert alle Adapter. Ein
-   Projekt, das 141 Tests über neun Suiten konsistent halten muss, sollte sich
+   Projekt, für das zum Entwurfszeitpunkt 141 angebliche Tests in neun Suiten
+   galten und das heute **307 Testfunktionen in 19 Suiten** hat, sollte sich
    keine zweite Veraltungsachse bauen.
 4. **Hardware.** GTX 1080 Ti (Pascal) hat keine brauchbaren Tensor Cores und
    kein schnelles bf16. QLoRA auf 3B ist möglich, aber langsam — und belegt
@@ -157,9 +164,11 @@ statt.** Cloud-Inferenz bleibt verboten.
 
 **Begründung**: Der Unterschied zwischen einer Cloud-Sandbox und dem lokalen
 Rechner ist nicht „Kernel oder kein Kernel" — beide haben einen echten
-Linux-Kernel. Der Unterschied ist **Hardwarezugriff und Datenhoheit**. Acht der
-neun Testsuiten brauchen Backend, Modelle, GPU, Mikrofon oder `espeak-ng`
-(Abschnitt 1a). Keine Cloud-Sandbox kann das erbringen. Umgekehrt ist ein
+Linux-Kernel. Der Unterschied ist **Hardwarezugriff und Datenhoheit**. Zum
+Entwurfszeitpunkt waren es acht von neun, nach P1 acht von dreizehn und heute
+acht von neunzehn Suiten, die Backend, Modelle, GPU, Mikrofon oder
+`espeak-ng` brauchen (Abschnitt 1a). Keine Cloud-Sandbox kann das erbringen.
+Umgekehrt ist ein
 Cloud-Agent für das Umschreiben von `retrieval.py` oder das Reparieren einer
 CI-Datei vollkommen ausreichend.
 
@@ -222,7 +231,7 @@ Planungsgrundlage und wird nach der ersten Messung ersetzt.
 
 ---
 
-## 4. Rollenmodell (Zielbild, nicht implementiert)
+## 4. Rollenmodell (Zielbild; Implementierung siehe 5a)
 
 ```yaml
 # config/roles.yaml — Zielbild
@@ -264,6 +273,13 @@ Zwei Eigenschaften sind wesentlich und beide sind **nicht** Modellsache:
 `auditor` hat kein Schreibrecht, und jede Rolle hat eine eigene Eval-Suite.
 Wer eine Rolle ändern will, ändert eine Zeile YAML und läuft ihre Suite.
 
+**Umsetzung:** `config/roles.json` ist die maschinelle Quelle,
+`config/roles.yaml` die von `scripts/build_roles.py` generierte, ADR-konforme
+YAML-Ansicht. Die Eval-Suiten liegen unter `evals/roles/<rolle>.json`; das
+Gesamtset `evals/golden.json` wird aus ihnen erzeugt. JSON zusätzlich zu YAML
+ist eine bewusste Abweichung vom Formatvorschlag oben: alle Werkzeuge bleiben
+damit ohne PyYAML in einer nackten CI-Umgebung prüfbar.
+
 ---
 
 ## 5. Umsetzungsreihenfolge
@@ -290,7 +306,11 @@ Kette von Ladezeiten wäre.
 ## 5a. Umsetzungsstand (Änderungshistorie, keine Statusangabe)
 
 Der Phasenstatus steht ausschließlich in `docs/GUIALITA_STATE.yaml`. Hier nur,
-was seit dem Entwurf tatsächlich am Code passiert ist:
+was seit dem Entwurf tatsächlich am Code passiert ist. P3–P6 als CLI/HTTP-Werkzeuge umgesetzt
+heißt ausdrücklich nicht, dass eine produktive
+Orchestrierungsschicht, ein Desktop-Adapter oder parallele Agenten freigegeben
+wären. `current.hard_stop`, `next_authorized_phase: NONE` und `prohibitions`
+sind unverändert.
 
 - **P1 umgesetzt (2026-11-13).** `count_test_functions` in
   `scripts/run_all_tests.py` nutzt `ast` statt der Regex `\s+def test`. Damit
@@ -307,9 +327,47 @@ was seit dem Entwurf tatsächlich am Code passiert ist:
   `--compare A B` für Modellvergleich; `--json` für Reports. Fehlende Messungen
   erscheinen als `—`, nicht als 0 ms. `tests/test_benchmark.py` (10 Tests)
   sichert die Rechenwege ab.
-- **P0 offen.** Die Nachmessung der Sprachlatenz braucht die Referenzmaschine
-  mit GPU, Mikrofon und Modellen; sie ist in einer Sandbox nicht durchführbar.
-- **P3–P6 offen** und weiterhin freigabepflichtig.
+- **P3 umgesetzt (2026-11-13).** `scripts/eval.py` mit Golden Set,
+  `--dry-run`, `--live --model`, `--compare`, p50/p95 und einem
+  `resource_snapshot`, das fehlendes `nvidia-smi` als „nicht gemessen"
+  ausweist. `evals/roles/*.json` sind die Quelle, `evals/golden.json` ist
+  generiert (`scripts/build_golden.py --check`). 19 Aufgaben, 10 negative
+  Kontrollen; `tests/test_eval.py` mit 33 Tests.
+- **P4 umgesetzt als CLI-Werkzeug (2026-11-13).** `scripts/modelsctl.py`
+  liefert `budget`, `status`, `health`, `plan`, `switch`, `load`, `start`,
+  `stop` und `unload`. `start`/`stop` delegieren ausschließlich an
+  `scripts/start.sh` / `stop.sh` (D6) und fassen Ollama nicht an. Das
+  VRAM-Urteil ist dreiwertig: `fits`, `too_big`, `unknown`. `switch` misst die
+  Wanduhr bis zur ersten Antwort — **auf der Referenzmaschine**; in der
+  Sandbox existiert diese Messung nicht. `tests/test_modelsctl.py` mit 25 Tests.
+- **P5 umgesetzt (2026-11-13).** `config/roles.json` plus generiertes
+  `config/roles.yaml`, vier Rollen, vier Rollen-Evals. `scripts/roles.py`
+  erzwingt u. a. „Auditor schreibt nicht", „mutierendes Tool braucht
+  Freigabe" und prüft den YAML-Mirror. `roles.py switch router planner`
+  weist den Wechsel **ohne Modellwechsel** nach (D3). `tests/test_roles.py`
+  mit 27 Tests.
+- **P6 umgesetzt (2026-11-13).** `scripts/muscal.py` führt eine sequenzielle
+  Kette `router → planner → [coder] → auditor` mit Schema-Prüfung, Audit-Log,
+  STOP-Datei, Schrittgrenze und Staging-Guard aus — als CLI (`run`) **und**
+  HTTP (`serve`: `/health`, `/pipelines`, `/guard`, `POST /run`). Kein
+  Desktop, kein WebSocket, keine parallelen Agenten. `tests/test_muscal.py`
+  (26) und `tests/test_muscal_http.py` (14).
+- **Konsistenz nachgezogen (2026-11-13).** `scripts/check_docs.py` prüft die
+  aktuellen Zahlen, Grenzen und generierten Artefakte;
+  `tests/test_doc_consistency.py` (5). Runner und SSOT melden **307
+  Testfunktionen in 19 Suiten**.
+
+**Gemessen in der Sandbox:** `eval.py --dry-run` (19/19 Urteile wie erwartet),
+`eval.py --dry-run --all-suites` (4/4), `build_golden.py --check`,
+`build_roles.py --check`, `roles.py validate --check-mirror`,
+`check_docs.py`, `run_all_tests.py --check-state` (keine Abweichung) und der
+vollständige Runner (7 PASS, 12 NOT EXECUTED, 0 FAIL).
+
+**Nicht gemessen / offen:** **P0** — Voice-Latenz-Nachmessung auf der
+Referenzmaschine. Ebenso offen sind `eval.py --live` und `--compare`,
+`modelsctl.py switch/start/stop` mit echter Runtime, `muscal.py --live` bzw.
+HTTP ohne `dry_run`, echte VRAM-Belegung und jede Latenzangabe mit GPU. Ein
+grüner Sandbox-Lauf ist keine Hardware-Abnahme (D5).
 
 Nebenbefund aus P1: `scripts/run_all_tests.py` klassifiziert
 In-process-Suiten jetzt über die Fähigkeit `deps` (importierbar: pydantic,
@@ -364,11 +422,11 @@ Diese ADR wird neu bewertet, wenn:
 ## 9. Belege
 
 - `docs/GUIALITA_STATE.yaml` — `future_target` (PLANNED), `prohibitions`,
-  `testing` (141 Tests / 9 Suiten / `ci_capable: false`), `known_risks`,
-  `capabilities_absent`
+  `testing` (307 Testfunktionen / 19 Suiten / `ci_capable: false`),
+  `known_risks`, `capabilities_absent`
 - `docs/BASELINES/REGRESSION_CONTRACT.md` — Voraussetzungstabelle der Suiten
   (Auflösung des 7-vs-8-Widerspruchs)
-- `scripts/benchmark.py` — aktueller Messumfang (Embedding, `/health`)
+- `scripts/benchmark.py` — Stufenmessung, p50/p95, `--compare`
 - `scripts/measure_voice_turn.py` — Werkzeug für P0
 - `PROTOTYPEN/README.md` — Nachweis, dass der Desktop-Prototyp keine
   Fähigkeit ist
