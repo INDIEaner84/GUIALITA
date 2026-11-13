@@ -12,13 +12,35 @@ import time
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
-_DEFAULT_PATH = _ROOT / "data" / "audit.jsonl"
 _LOCK = threading.Lock()
+
+
+def _default_path() -> Path:
+    """Audit-Log über GUIALITA_DATA_ROOT auflösen (nicht hart im Repo).
+
+    Bisher war ``<repo>/data/audit.jsonl`` fest verdrahtet: ein gesetztes
+    GUIALITA_DATA_ROOT (z. B. für Testläufe oder externe Ablage) wurde
+    ignoriert und lokale Laufzeitdaten landeten im Repository.
+    GUIALITA_AUDIT_PATH hat weiterhin Vorrang.
+    """
+    try:
+        from backend import paths
+        data_root = Path(paths.data_root())
+    except Exception:
+        data_root = _ROOT / "data"
+    return data_root / "audit.jsonl"
+
+
+def _audit_path() -> Path:
+    override = os.environ.get("GUIALITA_AUDIT_PATH")
+    if override:
+        return Path(override).expanduser()
+    return _default_path().expanduser()
 
 
 def read_events(session_id: str | None = None, limit: int = 200) -> list[dict]:
     """Read recent audit metadata without failing when no log exists."""
-    path = Path(os.environ.get("GUIALITA_AUDIT_PATH", str(_DEFAULT_PATH))).expanduser()
+    path = _audit_path()
     if not path.is_file():
         return []
     events = []
@@ -64,7 +86,7 @@ def record(event: str, **fields) -> None:
         payload.pop("transcript", None)
         payload.pop("response", None)
 
-    path = Path(os.environ.get("GUIALITA_AUDIT_PATH", str(_DEFAULT_PATH))).expanduser()
+    path = _audit_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with _LOCK, path.open("a", encoding="utf-8") as stream:

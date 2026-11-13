@@ -8,12 +8,13 @@
 # Belege bzw. Erläuterungen. Wenn sie dieser Datei widersprechen, gilt diese
 # Datei. Phase-Reports werden nach ihrer Erstellung NICHT mehr geändert.
 #
-# Aktualisiert: 2026-08-22 (Merge arena/01a01e70 — Portabilität, Diagnose,
-#               Test-Härtung; kombiniert mit M5 Audit/Export von main)
+# Aktualisiert: 2026-11-13 (lokales Update + Verifikation: Mock-Test-Adapter,
+#               scripts/local_update.sh, AGENTS.md-Anweisungsprompt,
+#               Diagnose-/Audit-Korrekturen; Testbestand 141 → 145)
 
 meta:
   schema_version: 2
-  updated: 2026-08-22
+  updated: 2026-11-13
   authoritative: true
   supersedes:
     - docs/GUIALITA_PHASE_STATUS.md      # ab jetzt nur noch generierte Ansicht
@@ -248,7 +249,9 @@ reproducibility:
 testing:
   status: DOCUMENTED
   runner: scripts/run_all_tests.py
-  test_functions_total: 141
+  update_and_verify_entry: "bash scripts/local_update.sh [--mock]"
+  agent_instructions: AGENTS.md
+  test_functions_total: 145
   suites: 9
   previous_claims: [108, 79, 71, 145]
   previous_claims_note: >
@@ -262,7 +265,7 @@ testing:
     einzelne durchliefen. Der Runner weist sie getrennt aus.
   suite_inventory:
     test_voice_activation.py: {tests: 37, requires: none}
-    test_api.py: {tests: 23, requires: "backend, llm"}
+    test_api.py: {tests: 27, requires: "backend, llm (echt oder mock)"}
     test_memory_retrieval.py: {tests: 17, requires: "backend, llm"}
     test_memory.py: {tests: 16, requires: "backend, llm"}
     test_tts.py: {tests: 16, requires: "backend, tts-runtime"}
@@ -279,11 +282,38 @@ testing:
     scripts/run_all_tests.py prüft vor dem Lauf über /health, /audio/status und
     /audio/tts/status, welche Fähigkeiten vorhanden sind. Fehlt eine benötigte,
     wird die Suite als NOT_EXECUTED mit benannter Ursache geführt statt als FAIL.
-  ci_capable: false
+  mock_adapter:
+    status: PASS
+    date: 2026-11-13
+    module: backend/adapters/mock_adapter.py
+    activation: "GUIALITA_MOCK_LLM=1 (oder Modell mock-1b, adapter: mock)"
+    marker: "MOCK-LLM-OK"
+    classification: "Testinfrastruktur — KEINE Runtime, KEIN Runtime-Ersatz, keine Produktfähigkeit"
+    proves:
+      - "API-Vertrag und Fehlersemantik (400/404/415/500)"
+      - "Session- und Message-Persistenz über ChatService"
+      - "Memory-Indexierung, Retrieval und Graph"
+      - "Audit schreibt nur Metadaten (keine Inhalte)"
+      - "Session-Export (JSON/Markdown)"
+    does_not_prove:
+      - "echte LLM-Inferenz, Antwortqualität oder Modell-Latenz"
+      - "llama-cpp-python, CUDA/GPU"
+      - "STT (whisper.cpp), TTS (LFM-Audio), Mikrofon"
+    guard: >
+      Im Mock-Modus bleibt capabilities.llm=false und ready_for_voice_turn=false;
+      zusätzlich wird capabilities.llm_mock=true gemeldet. Der Runner kennzeichnet
+      solche Läufe als "PASS (mock)" und weist sie getrennt aus.
+    runtime_tests_unaffected: >
+      Runtime-abhängige Tests (echtes Modell, STT, TTS, Voice-Turn) springen mit
+      Begründung als skip; auf einer Maschine mit vorhandener Runtime laufen sie
+      unverändert. Kein Test wurde gelöscht oder abgeschwächt.
+  ci_capable: partial
   ci_note: >
-    Sieben von neun Suiten benötigen ein laufendes Backend, Modelle, GPU,
-    Mikrofon oder espeak-ng. Nur test_voice_activation.py läuft ohne
-    Voraussetzungen.
+    Ohne Modelle/GPU/Mikrofon laufen 6 von 9 Suiten (test_voice_activation,
+    test_graph_visualization sowie test_memory, test_memory_retrieval,
+    test_memory_graph, test_api im Mock-Modus). test_tts, test_capture und
+    test_process_audio brauchen echte Audio-Runtimes bzw. Hardware und bleiben
+    NOT_EXECUTED. Ein Mock-Lauf ersetzt keine Runtime-Abnahme.
 
 # ------------------------------------------------------------
 # Verifizierte Umgebung (Referenzmaschine)
