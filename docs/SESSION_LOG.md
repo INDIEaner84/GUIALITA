@@ -164,6 +164,99 @@ Commit: `8bb9500 Make voice pipeline session-aware and improve local setup`
 - M4/M5 und die verbleibenden Hardware-/Runtime-Blocker sind jetzt einheitlich
   ausgewiesen.
 
+## 2026-11-13 — ADR-002: Agenten-Orchestrierung (Entwurf)
+
+### Ziel
+
+Architekturentscheidung für die geplante MUSCAL-Orchestrierungsschicht
+festhalten, bevor Code entsteht.
+
+### Änderungen
+
+- `docs/adr/ADR-002-agent-orchestration.md` neu angelegt, Status **PROPOSED**.
+- Keine Codeänderung, keine Änderung an `GUIALITA_STATE.yaml`, keine
+  Aufhebung von `prohibitions`.
+
+### Befunde
+
+- MUSCAL ist `future_target: PLANNED`; Laden, Wechseln, Trainieren und
+  Benchmark-Orchestrierung existieren nicht.
+- `testing.ci_note` nennt „sieben von neun" Suiten mit Voraussetzungen,
+  `known_risks` nennt „8 von 9". Die Voraussetzungstabelle in
+  `REGRESSION_CONTRACT.md` belegt **8 von 9**; die `ci_note` ist falsch.
+- `scripts/benchmark.py` misst ausschließlich `memory.embed` und optional
+  `GET /health`; keine Turn-, Wechsel- oder Modellvergleichsmessung.
+
+### Entscheidungen im Entwurf
+
+D1 Eval-Harness vor Orchestrierung · D2 Rollen als Konfiguration, kein LoRA
+als Rollenidentität · D3 Lifecycle mit VRAM-Budget, Wechsel als Kostenstelle ·
+D4 MUSCAL beginnt als CLI/HTTP · D5 Verifikation lokal, Cloud nur für Code ·
+D6 Prozessisolation · D7 SSOT-Zahlen vorher konsolidieren.
+
+### Offen
+
+- Freigabe für P3–P6 (neue Schichten) steht aus.
+- P0 (`voice_forensics_v1` nachmessen) und P1 (SSOT-Zahlen) sind ohne neue
+  Freigabe möglich.
+
+## 2026-11-13 — P1/P2 umgesetzt: Inventar korrigiert, Benchmark pro Stufe
+
+### Ziel
+
+Die in ADR-002 als freigabefrei markierten Schritte umsetzen: Zahlen der SSOT
+gegen die Realität abgleichen (P1) und den Benchmark von einer Alibi-Messung zu
+einer Stufenmessung machen (P2).
+
+### Änderungen
+
+- `scripts/run_all_tests.py`
+  - `count_test_functions` zählt per `ast` statt per Regex `\s+def test`.
+  - `test_audit.py`, `test_chat_service.py`, `test_audio_contract.py` sind in
+    `SUITES` aufgenommen; sie standen in der SSOT, liefen aber nie.
+  - neue Fähigkeit `deps` (pydantic/fastapi importierbar).
+  - neuer Befehl `--check-state`: gleicht Runner-Inventar gegen
+    `docs/GUIALITA_STATE.yaml` ab, Exitcode 1 bei Abweichung.
+- `scripts/benchmark.py` neu geschrieben: Stufen getrennt (Embedding, Chat,
+  TTS, STT/Turn aus dem Audit-Log), Perzentile, `--compare`, `--json`.
+  Fehlende Messungen erscheinen als `—`, nicht als 0 ms.
+- `tests/test_benchmark.py` neu (10 Tests, reine Standardbibliothek).
+- `.github/workflows/state-consistency.yml` neu: CI-Abgleich Inventar ↔ SSOT,
+  ohne Backend, GPU oder Modelle.
+- `docs/GUIALITA_STATE.yaml`: `testing`-Block ersetzt (177 Funktionen,
+  13 Suiten, Ursachen der Korrektur, `suite_inventory` konsolidiert),
+  `known_risks` und `ci_note` korrigiert, `meta.updated` gesetzt.
+- `docs/BASELINES/REGRESSION_CONTRACT.md`: Tabelle und Summe korrigiert,
+  Korrekturabschnitt 2026-11-13 ergänzt, alte 141 als überholt markiert.
+- `docs/adr/ADR-002-agent-orchestration.md`: Abschnitt „Umsetzungsstand".
+
+### Befunde
+
+- Die Zahl 141 war falsch. Ursachen: (a) der Zähler erfasste nur eingerückte
+  TestCase-Methoden, `test_process_audio.py` meldete 5 statt 14,
+  `test_capture.py` 0 statt 6; (b) drei Suiten des Hauptzweigs standen nicht
+  in der Runner-Liste und liefen nie.
+- Korrigierter Stand: **177 Testfunktionen in 13 Suiten**.
+- `ci_note` sagte „sieben von neun", `known_risks` „8 von 9" — beide falsch;
+  zutreffend sind **8 von 13** Suiten mit Laufzeitvoraussetzung.
+
+### Läufe (Sandbox, ohne Modelle, GPU, Mikrofon)
+
+- `python3 scripts/run_all_tests.py --check-state` → „Keine Abweichung", RC 0
+- `python3 scripts/run_all_tests.py` → 1 PASS (`test_benchmark.py` 10/10),
+  12 NOT EXECUTED, 0 FAIL. Kein FAIL durch fehlende Python-Pakete mehr.
+- `python3 tests/test_benchmark.py` → 10 Tests, OK
+- `python3 scripts/benchmark.py` → lokale Messung nicht möglich (numpy fehlt
+  in der Sandbox), sauber ausgewiesen statt als 0 ms
+- `python3 scripts/benchmark.py --live` → RC 2, „nicht durchgeführt"
+
+### Offen
+
+- **P0** — Nachmessung der Sprachlatenz auf der Referenzmaschine. In dieser
+  Umgebung nicht durchführbar (keine GPU, kein Mikrofon, keine Modelle).
+- **P3–P6** — Eval-Harness, Lifecycle-Manager, Rollen-Registry,
+  MUSCAL-CLI. Bleiben freigabepflichtig; `prohibitions` unverändert.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.

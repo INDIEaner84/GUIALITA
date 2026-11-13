@@ -1,0 +1,43 @@
+name: State Consistency
+
+# Warum dieser Workflow existiert
+# -------------------------------
+# docs/GUIALITA_STATE.yaml ist die einzige Statusquelle des Projekts. Sie war
+# mehrfach zahlenmäßig falsch (Testzahlen 108/79/71/145/141). Diese Prüfung
+# läuft ohne Backend, ohne GPU und ohne Modelle — sie ist damit die einzige
+# Prüfung des Repos, die in CI überhaupt belastbar grün werden kann.
+#
+# Geprüft wird:
+#   1. Inventar des Testrunners gegen `suite_inventory` in der SSOT.
+#   2. Die Benchmark-Statistik (Perzentile, n=0-Verhalten).
+#
+# Siehe docs/adr/ADR-002-agent-orchestration.md, Entscheidung D7.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    name: Inventar ↔ SSOT
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Testinventar gegen docs/GUIALITA_STATE.yaml abgleichen
+        run: python3 scripts/run_all_tests.py --check-state
+
+      - name: Benchmark-Statistik prüfen
+        run: python3 tests/test_benchmark.py

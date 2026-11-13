@@ -29,6 +29,7 @@ Nutzung
 """
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -85,7 +86,7 @@ NOT_EXECUTED = "NOT_EXECUTED"
 # Voraussetzungen je Suite — vor dem Lauf geprüft, damit NOT_EXECUTED
 # begründet ist und nicht als Fehlschlag erscheint.
 SUITES = [
-    ("test_voice_activation.py",    "Voice-Zustandsautomat",   [],                          300),
+    ("test_voice_activation.py",    "Voice-Zustandsautomat",   ["deps"],                    300),
     ("test_memory.py",              "Session + Memory-Store",  ["backend", "llm"],          300),
     ("test_memory_retrieval.py",    "Embedding + Retrieval",   ["backend", "llm"],          600),
     ("test_memory_graph.py",        "Entities + Relationen",   ["backend", "llm"],          600),
@@ -94,9 +95,21 @@ SUITES = [
     ("test_tts.py",                 "TTS-Erzeugung",           ["backend", "tts"],          900),
     ("test_capture.py",             "Mikrofonaufnahme",        ["mikrofon", "espeak"],      300),
     ("test_process_audio.py",       "WAV → LFM-Audio (Batch)", ["lfm-audio-runtime", "espeak"], 900),
+    # Hauptzweig (M5): Diese drei Suiten existierten und waren in der SSOT
+    # dokumentiert, standen aber nicht in dieser Liste — sie liefen damit nie
+    # über den kanonischen Lauf. Seit 2026-11-13 enthalten. Alle drei arbeiten
+    # in-process (kein Server, kein Modell) und brauchen nur die
+    # Python-Abhängigkeiten.
+    ("test_audit.py",               "Audit/Export",             ["deps"],                   600),
+    ("test_chat_service.py",        "ChatService (Fake-LLM)",   ["deps"],                   600),
+    ("test_audio_contract.py",      "Audio-Contract",           ["deps"],                   300),
+    # Neu 2026-11-13 (ADR-002, P2): Statistik des Benchmarks. Reine
+    # Standardbibliothek — läuft überall, auch ohne installierte Pakete.
+    ("test_benchmark.py",           "Benchmark-Statistik",      [],                         120),
 ]
 
 CAPABILITY_LABEL = {
+    "deps":    "Python-Abhängigkeiten importierbar (pydantic, fastapi)",
     "backend": "Backend erreichbar (http://localhost:8080)",
     "llm":     "LLM-Runtime geladen (llama-cpp-python + Modell)",
     "tts":     "TTS-Runtime (llama-liquid-audio-cli + LFM-Audio-Modell)",
@@ -109,11 +122,18 @@ CAPABILITY_LABEL = {
 
 def probe_capabilities(base_url="http://localhost:8080"):
     """Prüft VOR dem Testlauf, was auf dieser Maschine überhaupt vorhanden ist."""
+    import importlib.util
     import json as _json
     import shutil
     import urllib.request
 
     caps = {k: False for k in CAPABILITY_LABEL}
+
+    # In-process-Suiten brauchen keinen Server, aber die Python-Pakete. Ohne
+    # diese Prüfung erschienen sie in einer nackten Umgebung als FAIL
+    # (ImportError) statt als NOT_EXECUTED mit benannter Ursache.
+    caps["deps"] = all(importlib.util.find_spec(mod) is not None
+                       for mod in ("pydantic", "fastapi"))
 
     def get(path):
         try:
@@ -172,11 +192,102 @@ COUNT = re.compile(r"(failures|errors|skipped)=(\d+)")
 
 
 def count_test_functions(path):
+    """Zählt Testfunktionen statisch per AST.
+
+    Die frühere Fassung nutzte die Regex ``\\s+def test`` — also nur
+    **eingerückte** Definitionen. Damit zählte sie ausschließlich Methoden in
+    ``unittest.TestCase``-Klassen und übersah jeden modulweiten Test. Folge:
+
+    - ``tests/test_process_audio.py`` meldete 5 statt 14 (9 modulweite Tests
+      fehlten), die Gesamtzahl 141 war entsprechend zu niedrig.
+    - ``tests/test_capture.py`` meldete 0, obwohl dort 6 Testfunktionen stehen
+      (``test3_…`` bis ``test10_…``, aufgerufen aus ``main()``).
+
+    Der AST zählt jede Funktion, deren Name mit ``test`` beginnt — unabhängig
+    von Einrückung und Klasse.
+    """
     try:
-        with open(path, encoding="utf-8") as f:
-            return sum(1 for line in f if re.match(r"\s+def test", line))
-    except OSError:
+        with open(path, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+    except (OSError, SyntaxError):
         return 0
+    return sum(1 for node in ast.walk(tree)
+               if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and node.name.startswith("test"))
+
+
+STATE_FILE = os.path.join(BASE_DIR, "docs", "GUIALITA_STATE.yaml")
+STATE_ROW = re.compile(r"^ {4}(test_[A-Za-z0-9_]+\.py):\s*\{tests:\s*(\d+)")
+STATE_TOTAL = re.compile(r"^  test_functions_total:\s*(\d+)")
+
+
+def read_state_inventory(path=STATE_FILE):
+    """Liest Testzahlen aus der SSOT — bewusst ohne PyYAML.
+
+    Nur ``test_functions_total`` und der Block ``suite_inventory`` werden
+    gelesen. Das Skript bleibt damit auch dort lauffähig, wo PyYAML fehlt
+    (z. B. im System-Python einer frischen Maschine).
+    """
+    total = None
+    rows = {}
+    in_block = False
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            match_total = STATE_TOTAL.match(line)
+            if match_total:
+                total = int(match_total.group(1))
+                in_block = False
+                continue
+            if re.match(r"^  suite_inventory:\s*$", line):
+                in_block = True
+                continue
+            if in_block:
+                row = STATE_ROW.match(line)
+                if row:
+                    rows[row.group(1)] = int(row.group(2))
+                elif line.strip() and not line.startswith("    "):
+                    in_block = False
+    return total, rows
+
+
+def check_state(inventory):
+    """Gleicht das Runner-Inventar gegen die SSOT ab (ADR-002, D7).
+
+    Gibt 0 bei Übereinstimmung, 1 bei Abweichung, 2 wenn die SSOT fehlt.
+    """
+    try:
+        total, rows = read_state_inventory()
+    except OSError as exc:
+        print(f"\n  SSOT nicht lesbar: {exc}")
+        return 2
+
+    problems = []
+    names = {f for f, *_ in inventory}
+    for f, _label, _prereq, n in inventory:
+        if f not in rows:
+            problems.append(f"{f}: fehlt in suite_inventory")
+        elif rows[f] != n:
+            problems.append(f"{f}: SSOT nennt {rows[f]}, tatsächlich {n}")
+    for f in rows:
+        if f not in names:
+            problems.append(f"{f}: in suite_inventory, aber nicht im Runner")
+    computed = sum(n for *_, n in inventory)
+    if total != computed:
+        problems.append(f"test_functions_total: SSOT nennt {total}, tatsächlich {computed}")
+
+    print()
+    print("=" * 78)
+    print("  Abgleich Runner ↔ docs/GUIALITA_STATE.yaml")
+    print("=" * 78)
+    print(f"  Suiten im Runner: {len(inventory)}   in der SSOT: {len(rows)}")
+    print(f"  Testfunktionen im Runner: {computed}   in der SSOT: {total}")
+    if problems:
+        print("\n  ABWEICHUNGEN:")
+        for problem in problems:
+            print(f"    - {problem}")
+        return 1
+    print("\n  Keine Abweichung.")
+    return 0
 
 
 def classify(returncode, output):
@@ -240,6 +351,8 @@ def main():
     ap.add_argument("--only", nargs="+", metavar="TEIL",
                     help="nur Suiten, deren Name diese Teilzeichenkette enthält")
     ap.add_argument("--list", action="store_true", help="nur das Inventar zeigen")
+    ap.add_argument("--check-state", action="store_true",
+                    help="Inventar gegen docs/GUIALITA_STATE.yaml prüfen")
     ap.add_argument("--yaml", action="store_true", help="Report nach docs/measurements/ schreiben")
     args = ap.parse_args()
 
@@ -263,6 +376,9 @@ def main():
         print(f"  {f:<32}{n:>4} Tests   {label:<26} braucht: {need}")
     print(f"\n  Testfunktionen gesamt: {total_functions}   (Suiten: {len(inventory)})")
     print("  Jede Suite wird genau einmal ausgeführt — keine Mehrfachzählung.")
+
+    if args.check_state:
+        return check_state(inventory)
 
     if args.list:
         print()

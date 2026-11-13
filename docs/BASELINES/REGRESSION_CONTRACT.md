@@ -31,16 +31,20 @@ DIAGNOSTICS_REGRESSION = FAIL if GET /diagnostics broken or paths unresolved
 
 | Suite | Tests | Voraussetzung | Deckt ab |
 |---|---|---|---|
-| `tests/test_voice_activation.py` | 37 | keine | Voice-Zustandsautomat, STT/Chat/TTS-Anbindung |
-| `tests/test_api.py` | 23 | Backend | alle HTTP-Endpunkte inkl. /diagnostics |
-| `tests/test_memory_retrieval.py` | 17 | Backend | Embedding + Retrieval |
-| `tests/test_memory.py` | 16 | Backend | Session + Memory-Store |
+| `tests/test_voice_activation.py` | 37 | Python-Abhängigkeiten | Voice-Zustandsautomat, STT/Chat/TTS-Anbindung |
+| `tests/test_api.py` | 23 | Backend, LLM | alle HTTP-Endpunkte inkl. /diagnostics |
+| `tests/test_memory_retrieval.py` | 17 | Backend, LLM | Embedding + Retrieval |
+| `tests/test_memory.py` | 16 | Backend, LLM | Session + Memory-Store |
 | `tests/test_tts.py` | 16 | Backend, TTS-Runtime | TTS-Erzeugung + Regression |
-| `tests/test_memory_graph.py` | 14 | Backend | Entities/Relationen + Graph-Abfrage |
+| `tests/test_memory_graph.py` | 14 | Backend, LLM | Entities/Relationen + Graph-Abfrage |
 | `tests/test_graph_visualization.py` | 13 | Backend | Graph-API + Frontend |
-| `tests/test_process_audio.py` | 5 | LFM-Audio-Runtime, espeak-ng | WAV → Transkript (Batch) |
-| `tests/test_capture.py` | 0 | Mikrofon, espeak-ng | Aufnahme (Prozedurskript, keine `test_*`-Methoden) |
-| **Summe** | **141** | | **vollständige Regression** |
+| `tests/test_process_audio.py` | 14 | LFM-Audio-Runtime, espeak-ng | WAV → Transkript (Batch) |
+| `tests/test_capture.py` | 6 | Mikrofon, espeak-ng | Aufnahme (Prozedur aus `main()`) |
+| `tests/test_audit.py` | 4 | Python-Abhängigkeiten | Audit-Persistenz, Filter, Summary |
+| `tests/test_chat_service.py` | 3 | Python-Abhängigkeiten | ChatService-Flow mit Fake-LLM |
+| `tests/test_audio_contract.py` | 4 | Python-Abhängigkeiten | Audio-Schema-Validierung |
+| `tests/test_benchmark.py` | 10 | keine | Benchmark-Statistik (Perzentile, n=0) |
+| **Summe** | **177** | | **vollständige Regression** |
 
 ### Korrektur der Testzahl (2026-08-21)
 
@@ -50,7 +54,9 @@ Subprozesse. Beim Lauf aller neun Suiten wurde `test_memory.py` **achtmal** und
 `test_api.py` **sechsmal** ausgeführt — **35 Suite-Läufe statt 9**. Dieselben
 Tests wurden mehrfach gezählt.
 
-Die tatsächliche Zahl ist **141 Testfunktionen in 9 Suiten** (136 bei der Korrektur, +5 durch die Tests für `/diagnostics`).
+Die damals für richtig gehaltene Zahl war **141 Testfunktionen in 9 Suiten**
+(136 bei der Korrektur, +5 durch die Tests für `/diagnostics`).
+**Überholt** — siehe Korrektur vom 2026-11-13: 167 Funktionen in 12 Suiten.
 
 Verbindlicher Lauf:
 
@@ -58,6 +64,36 @@ Verbindlicher Lauf:
 python3 scripts/run_all_tests.py          # jede Suite genau einmal
 python3 scripts/run_all_tests.py --list   # Inventar ohne Ausführung
 ```
+
+### Korrektur der Testzahl (2026-11-13)
+
+Die oben genannte Zahl **141 in 9 Suiten** war ebenfalls falsch. Sie hatte drei
+Ursachen:
+
+1. **Der Zähler zählte falsch.** `count_test_functions` nutzte die Regex
+   `\s+def test` und erfasste damit ausschließlich **eingerückte** Methoden
+   in `unittest.TestCase`-Klassen. Jeder modulweite Test fehlte. Konkret:
+   `test_process_audio.py` meldete 5 statt 14, `test_capture.py` 0 statt 6.
+2. **Drei Suiten liefen nie.** `test_audit.py`, `test_chat_service.py` und
+   `test_audio_contract.py` existierten und waren in der SSOT als
+   „additional mainline suites" dokumentiert, standen aber nicht in der
+   Liste des Runners. Sie wurden vom kanonischen Lauf nie erreicht.
+3. **Die Voraussetzungsspalte war zu grob.** Fünf Suiten brauchen zusätzlich
+   zur laufenden Runtime ein geladenes LLM, nicht nur ein erreichbares Backend.
+
+Maßgeblich sind jetzt **177 Testfunktionen in 13 Suiten** (167 aus der
+Korrektur, +10 für `test_benchmark.py`, neu am 2026-11-13). Der Zähler arbeitet
+mit `ast`, die drei Suiten sind im Runner enthalten, und der Abgleich ist
+maschinell prüfbar:
+
+```bash
+python3 scripts/run_all_tests.py --check-state   # Exitcode 1 bei Abweichung
+```
+
+`--check-state` vergleicht Runner-Inventar und `suite_inventory` in
+`docs/GUIALITA_STATE.yaml`. Ein grüner Lauf dieses Abgleichs ist die
+Voraussetzung dafür, dass die Zahlen in beiden Dokumenten als belastbar gelten
+(siehe `docs/adr/ADR-002-agent-orchestration.md`, Entscheidung D7).
 
 Verschachtelte Suite-Aufrufe sind standardmäßig deaktiviert
 (`GUIALITA_TEST_NESTED=1` stellt das alte Verhalten wieder her).

@@ -8,12 +8,16 @@
 # Belege bzw. Erläuterungen. Wenn sie dieser Datei widersprechen, gilt diese
 # Datei. Phase-Reports werden nach ihrer Erstellung NICHT mehr geändert.
 #
-# Aktualisiert: 2026-08-22 (Merge arena/01a01e70 — Portabilität, Diagnose,
-#               Test-Härtung; kombiniert mit M5 Audit/Export von main)
+# Aktualisiert: 2026-11-13 (Testzahlen korrigiert: 141 -> 167 Funktionen,
+#               9 -> 12 Suiten. Ursache: fehlerhafter Zähler in
+#               scripts/run_all_tests.py und drei nie ausgeführte Suiten.
+#               Nachweis: scripts/run_all_tests.py --check-state)
+#               Davor: 2026-08-22 (Merge arena/01a01e70 — Portabilität,
+#               Diagnose, Test-Härtung; kombiniert mit M5 Audit/Export)
 
 meta:
   schema_version: 2
-  updated: 2026-08-22
+  updated: 2026-11-13
   authoritative: true
   supersedes:
     - docs/GUIALITA_PHASE_STATUS.md      # ab jetzt nur noch generierte Ansicht
@@ -248,42 +252,74 @@ reproducibility:
 testing:
   status: DOCUMENTED
   runner: scripts/run_all_tests.py
-  test_functions_total: 141
-  suites: 9
-  previous_claims: [108, 79, 71, 145]
+  test_functions_total: 177
+  suites: 13
+  counting_method: >-
+    AST — gezählt wird jede Funktion, deren Name mit "test" beginnt,
+    unabhängig von Einrückung oder TestCase-Klasse.
+  previous_claims: [108, 79, 71, 145, 141]
   previous_claims_note: >
-    Alle vier Angaben waren falsch. Drei Suiten starteten andere Suiten als
-    Subprozesse; beim Lauf aller neun Suiten wurde test_memory.py achtmal und
-    test_api.py sechsmal ausgeführt (35 Suite-Läufe statt 9), wodurch dieselben
-    Tests mehrfach gezählt wurden.
+    Alle fünf Angaben waren falsch. Die Zahlen 108/79/71/145 entstanden, weil
+    drei Suiten sich gegenseitig als Subprozesse starteten (35 Suite-Läufe
+    statt 9, test_memory.py achtmal und test_api.py sechsmal). Die Zahl 141
+    hatte eine zweite Ursache: der Zähler in scripts/run_all_tests.py nutzte
+    die Regex "\s+def test" und erfasste damit nur eingerückte Methoden in
+    TestCase-Klassen. Modulweite Tests fehlten komplett.
+  correction_2026_11_13:
+    detection: "scripts/run_all_tests.py --check-state"
+    effect: "141 -> 177 Testfunktionen, 9 -> 13 Suiten"
+    causes:
+      - "Zähler-Regex erfasste nur eingerückte Methoden: test_process_audio.py meldete 5 statt 14, test_capture.py 0 statt 6"
+      - "test_audit.py, test_chat_service.py und test_audio_contract.py existierten und waren hier dokumentiert, standen aber nicht in der Runner-Liste — sie liefen nie über den kanonischen Lauf"
+    fix:
+      - "count_test_functions nutzt jetzt ast statt Regex"
+      - "die drei Hauptzweig-Suiten sind in SUITES aufgenommen"
+      - "--check-state gleicht Runner und dieser Datei automatisch ab"
   nested_suite_calls: "standardmäßig deaktiviert (GUIALITA_TEST_NESTED=1 reaktiviert)"
   grading_rule: >
     Tests aus einer NOT_EXECUTED-Suite zählen nicht als bestanden, auch wenn
     einzelne durchliefen. Der Runner weist sie getrennt aus.
   suite_inventory:
-    test_voice_activation.py: {tests: 37, requires: none}
+    test_voice_activation.py: {tests: 37, requires: deps}
     test_api.py: {tests: 23, requires: "backend, llm"}
     test_memory_retrieval.py: {tests: 17, requires: "backend, llm"}
     test_memory.py: {tests: 16, requires: "backend, llm"}
     test_tts.py: {tests: 16, requires: "backend, tts-runtime"}
     test_memory_graph.py: {tests: 14, requires: "backend, llm"}
     test_graph_visualization.py: {tests: 13, requires: backend}
-    test_process_audio.py: {tests: 5, requires: "lfm-audio-runtime, espeak-ng"}
-    test_capture.py: {tests: 0, requires: "mikrofon, espeak-ng"}
-  additional_mainline_suites:
-    # Hinzugekommen über den M5-Audit/Export-Zweig (Hauptzweig).
-    test_audit.py: {requires: backend}
-    test_chat_service.py: {requires: backend, llm}
-    test_audio_contract.py: {requires: backend}
+    test_process_audio.py: {tests: 14, requires: "lfm-audio-runtime, espeak-ng"}
+    test_capture.py: {tests: 6, requires: "mikrofon, espeak-ng"}
+    test_audit.py: {tests: 4, requires: deps}
+    test_chat_service.py: {tests: 3, requires: deps}
+    test_audio_contract.py: {tests: 4, requires: deps}
+    test_benchmark.py: {tests: 10, requires: none}
+  suite_inventory_note: >
+    test_benchmark.py ist am 2026-11-13 neu hinzugekommen (10 Tests, reine
+    Standardbibliothek) und prüft die Statistik des Benchmarks, nicht
+    Messwerte. test_capture.py zählt 6, weil dort sechs Funktionen test3_… bis test10_…
+    stehen; sie werden aus main() aufgerufen und brauchen ein Mikrofon. Die
+    frühere Angabe "0 Tests, keine test_*-Methoden" war falsch — es sind
+    Funktionen, keine Methoden.
+  additional_mainline_suites: >
+    Aufgelöst. test_audit.py, test_chat_service.py und test_audio_contract.py
+    sind seit 2026-11-13 Teil von suite_inventory und des kanonischen Laufs.
   capability_probe: >
     scripts/run_all_tests.py prüft vor dem Lauf über /health, /audio/status und
-    /audio/tts/status, welche Fähigkeiten vorhanden sind. Fehlt eine benötigte,
-    wird die Suite als NOT_EXECUTED mit benannter Ursache geführt statt als FAIL.
+    /audio/tts/status sowie per Import-Test (pydantic, fastapi), welche
+    Fähigkeiten vorhanden sind. Fehlt eine benötigte, wird die Suite als
+    NOT_EXECUTED mit benannter Ursache geführt statt als FAIL. Die
+    Fähigkeit "deps" wurde ergänzt, weil In-process-Suiten ohne installierte
+    Pakete sonst als FAIL (ImportError) statt als NOT_EXECUTED erschienen.
   ci_capable: false
   ci_note: >
-    Sieben von neun Suiten benötigen ein laufendes Backend, Modelle, GPU,
-    Mikrofon oder espeak-ng. Nur test_voice_activation.py läuft ohne
-    Voraussetzungen.
+    Acht von dreizehn Suiten benötigen mehr als die Python-Abhängigkeiten:
+    ein laufendes Backend, Modelle, GPU, Mikrofon oder espeak-ng. Ohne Server
+    und ohne Modell laufen fünf Suiten — test_benchmark.py sogar ohne
+    installierte Pakete, die übrigen vier (test_voice_activation.py,
+    test_audit.py, test_chat_service.py, test_audio_contract.py) nach
+    Installation der Abhängigkeiten. Die frühere Formulierung "nur
+    test_voice_activation.py läuft ohne Voraussetzungen" war in beide
+    Richtungen falsch.
 
 # ------------------------------------------------------------
 # Verifizierte Umgebung (Referenzmaschine)
@@ -411,7 +447,7 @@ known_issues:
   - "Audio-Device-Index ist systemabhängig (--list-devices)"
 
 known_risks:
-  - "8 von 9 Testsuiten benötigen Backend, Modelle, GPU, Mikrofon oder espeak-ng — nicht CI-fähig"
+  - "8 von 13 Testsuiten benötigen Backend, Modelle, GPU, Mikrofon oder espeak-ng — nicht CI-fähig"
   - "VAD-Schwellen sind umgebungsabhängig"
   - "Runner-Builds auf HuggingFace können sich ändern (WIP)"
   - "Plattenplatz begrenzt — keine großen Downloads ohne Freigabe"
