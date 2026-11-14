@@ -19,9 +19,10 @@ Zuletzt fortgeschrieben: 2026-11-13.
 - **P0** (Voice-Turn-Nachmessung) bleibt offen; `current.hard_stop: true`,
   `next_authorized_phase: NONE` und `prohibitions` sind unverändert.
 - MUSCAL bleibt CLI/HTTP, kein Desktop-Adapter, keine parallelen Agenten.
-- Extern geprüft: `gh run view 43621040654` → `success`, alle 13 Schritte des
-  Workflows `State Consistency` grün; insgesamt vier Push-Läufe auf diesem
-  Branch erfolgreich. Kein PR eröffnet (nicht freigegeben).
+- Extern geprüft: `gh run view 43621040654` → `success`, 16/16 Schritte des
+  Workflows `State Consistency` grün (10 Prüfschritte); der Folgelauf
+  `43622338506` auf `005755b` ebenfalls grün. Insgesamt fünf Push-Läufe auf
+  diesem Branch erfolgreich. Kein PR eröffnet (nicht freigegeben).
 - `origin/main` ist auf `7caea0e` weitergezogen und nennt 145 Testfunktionen in
   9 Suiten. Der trockene Merge-Test meldet 4 Konfliktdateien; Details und
   Fahrplan in `docs/INTEGRATION_STATUS.md`. Dieser Branch bleibt bei

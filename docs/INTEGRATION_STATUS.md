@@ -12,12 +12,13 @@ der 13 aktuellen Dokumente verfälschen.
 | | Commit | Testinventar | Besonderheit |
 |---|---|---|---|
 | Merge-Basis | `4b3762b` | 141 / 9 (damals behauptet) | Ausgangspunkt beider Zweige |
-| Dieser Branch | `9b0e498` | **307 Testfunktionen in 19 Suiten** | ADR-002 P1–P6, AST-Zählung, 7 Standardbibliothek-Suiten |
+| Dieser Branch | `005755b` (Code: `9b0e498`) | **307 Testfunktionen in 19 Suiten** | ADR-002 P1–P6, AST-Zählung, 7 Standardbibliothek-Suiten |
 | `origin/main` | `7caea0e` | **145 Testfunktionen in 9 Suiten** | Mock-Test-Adapter, `local_update.sh`, `AGENTS.md` |
 
 `main` ist seit dem Branching um fünf Commits weitergezogen
-(`5e68392`, `5643df9`, `1bee303`, `4cde07a`, `7caea0e`); dieser Branch um vier
-(`7b6ca86`, `12afaed`, `03c0522`, `9b0e498`). Beide Zweige haben unabhängig
+(`5e68392`, `5643df9`, `1bee303`, `4cde07a`, `7caea0e`); dieser Branch um fünf
+(`7b6ca86`, `12afaed`, `03c0522`, `9b0e498`, `005755b`). `005755b` ist rein
+dokumentarisch und ändert kein Werkzeug und keine Testzahl. Beide Zweige haben unabhängig
 versucht, dasselbe Testinventar zu konsolidieren — mit **unterschiedlichen
 Ergebnissen**. Das ist der Kern des Konflikts, nicht bloß Text.
 
@@ -39,8 +40,14 @@ Automatisch zusammenführbar, aber von beiden Seiten geändert:
 `.gitignore` und `scripts/run_all_tests.py`.
 
 AST-Nachzählung auf `main`: `tests/test_api.py` hat **27** Testfunktionen
-(dieser Branch: 23), `tests/test_capture.py` weiterhin 6. Ein Merge ergäbe
-damit **311 Testfunktionen in 19 Suiten** — nicht 307 und nicht 145. Die
+(dieser Branch: 23), `tests/test_capture.py` weiterhin 6. Rechnerisch — bei
+Übernahme der `main`-Version von `test_api.py` — ergäbe ein Merge damit
+**311 Testfunktionen in 19 Suiten**, nicht 307 und nicht 145; das ist eine
+Hochrechnung, kein gemessener Merge. Hinzu kommt, dass `run_all_tests.py`
+zwar ohne Textkonflikt automatisch zusammengeführt wird, aber auf beiden
+Seiten unterschiedlich umgebaut wurde (hier AST-Zählung/`--check-state`, dort
+Mock-Adapter/`satisfied()`). Ein grünes Auto-Merge ist dort kein
+Funktionsnachweis. Die
 Zahlen in SSOT, Regression Contract, Bootstrap, Heartbeat, Session-Log,
 ADR-002, README und `tests/test_doc_consistency.py` müssten gemeinsam
 nachgezogen werden. Ein halb korrigierter Merge würde `--check-state` sofort
@@ -49,20 +56,29 @@ rot machen.
 ## Extern verifiziert: CI auf GitHub
 
 Der Workflow `.github/workflows/state-consistency.yml` ist auf GitHub aktiv.
-Alle vier Push-Läufe auf diesem Branch sind `success`:
+Alle fünf Push-Läufe auf diesem Branch sind `success`:
 
 | Run | Commit | Ergebnis |
 |---|---|---|
 | `43408033608` | `7b6ca86` | success |
 | `43425145999` | `12afaed` | success |
 | `43618536071` | `03c0522` | success |
-| `43621040654` | `9b0e498` | success, **13/13 Schritte** |
+| `43621040654` | `9b0e498` | success, **16/16 Schritte** (10 Prüfschritte) |
+| `43622338506` | `005755b` | success, **16/16 Schritte** (10 Prüfschritte) |
 
-`gh run view 43621040654` zeigt u. a. grün: Inventarabgleich, sieben
+`gh run view 43621040654` zeigt 16 Schritte, alle `success`; darunter die
+zehn eigentlichen Prüfschritte: Inventarabgleich, sieben
 Standardbibliothek-Suiten, Golden Set, Rollen-YAML, Registry, Eval,
 VRAM-Budget, MUSCAL-Trockenlauf, Live-Contract und Dokumenten-Konsistenz.
-Das ist ein Nachweis für **diesen Branch**, nicht für `main` und nicht für
-Hardware.
+Die übrigen sechs sind Setup-, Post- und Abschlussschritte. Der nachfolgende
+Push `005755b` lief in Run `43622338506` mit derselben Schrittfolge erneut
+grün. Das ist ein Nachweis für **diesen Branch**, nicht für `main` und nicht
+für Hardware.
+
+Nebenbefund aus den Run-Annotations: `actions/setup-python@v5` läuft noch auf
+Node.js 20 und wird derzeit auf Node.js 24 erzwungen; `ubuntu-latest` soll auf
+Ubuntu 26 wechseln. Die Pins wurden bewusst nicht blind angehoben — das ist
+eine separate Review-Entscheidung, kein Konsistenzfehler.
 
 ## Warum hier kein Merge und kein PR ausgeführt wurde
 
