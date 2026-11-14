@@ -317,6 +317,8 @@ testing:
     ci_capable_note: "partial — sieben Suiten in CI, zwölf in der nackten Sandbox NOT_EXECUTED"
     invariants_unchanged: "hard_stop: true, next_authorized_phase: NONE, 7 prohibitions, future_target: PLANNED"
     no_runtime_acceptance: "keine Inferenz, kein VRAM, keine GPU-, Latenz-, Modell- oder Audio-Abnahme"
+    merged_via: "PR #5 — gh pr merge 5 --merge, Merge-Commit d899919c900b8ebf9419a93e88c8bd58c19cb2c1, origin/main 7caea0e -> d899919"
+    merge_note: "GitHub-Ereignis 2026-11-14T21:27:08Z; meta.updated bleibt bewusst 2026-11-13 (Projektdatum, nicht Sandbox-Uhr)"
   nested_suite_calls: "standardmäßig deaktiviert (GUIALITA_TEST_NESTED=1 reaktiviert)"
   grading_rule: >
     Tests aus einer NOT_EXECUTED-Suite zählen nicht als bestanden, auch wenn

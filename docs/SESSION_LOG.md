@@ -928,6 +928,51 @@ Keine Inferenz, kein Modell, keine GPU, kein VRAM, keine echte Latenz,
 kein STT/TTS, keine Audio-Abnahme. `contract_check.py` bleibt ein
 Vertragsnachweis mit synthetischen Werten. Live-Abnahme bleibt offen.
 
+## Abschluss: PR #5 gemergt, `main` auf `d899919`
+
+**Ereignis-Zeitstempel (GitHub):** `2026-11-14T21:27:08Z`. Das Projektdatum
+der SSOT bleibt `2026-11-13`; es wird nicht an die Sandbox-Uhr angepasst.
+
+```text
+gh pr merge 5 --merge                          → RC 0
+gh api repos/.../pulls/5                       → state: closed, merged: true
+merge_commit_sha                               → d899919c900b8ebf9419a93e88c8bd58c19cb2c1
+origin/main                                    → 7caea0e -> d899919
+git merge-base --is-ancestor HEAD origin/main   → RC 0
+gh run view 43642883664 (push auf main)        → completed / success
+```
+
+Zum Zeitpunkt dieses Eintrags sind damit alle fünf PRs des Repositories
+`MERGED`; ein offener PR existiert nicht. Der Baum des PR-Heads und der Baum
+von `main` waren beim Merge identisch
+(`b4aa59cc09f2cda6394324e99a38c4b78f6539a3`). `arena/f82209dd-guialita`
+wurde nicht gelöscht. Der externe `Auto PR Review`-Check blieb wie bei
+PR #3/#4 rot, war aber nicht blockierend.
+
+### Verifikation auf `arena/dfd44a8d-guialita`
+
+Der neue Branch zweigt von `d899919` ab. Vor diesem Eintrag war sein Baum
+gleich `main`; die Prüfungen liefen auf genau diesem Stand:
+
+```text
+python3 scripts/check_docs.py                  → OK über 13 Dokumente (311/19)
+python3 scripts/run_all_tests.py --check-state → Keine Abweichung (311/19)
+python3 tests/test_doc_consistency.py          → 5 Tests OK
+python3 scripts/contract_check.py              → OK
+build_golden.py --check / build_roles.py --check / roles.py validate → OK
+eval.py --dry-run --all-suites / modelsctl.py budget / muscal.py --dry-run → OK
+--only <7 Stdlib-Suiten>                      → 7 PASS, 140/140, 0 FAIL
+vollständiger Runner                          → 7 PASS, 12 NOT EXECUTED, 0 FAIL
+python3 -m compileall -q backend scripts tests → RC 0
+git diff --check                              → RC 0
+```
+
+Ein weiterer Merge war auf diesem Stand weder nötig noch möglich: kein offener
+PR, keine Divergenz zu `main`. `docs/GUIALITA_STATE.yaml` bleibt die einzige
+Statusquelle mit **311 Testfunktionen in 19 Suiten**, `ci_capable: partial`,
+`hard_stop: true`, `next_authorized_phase: NONE` und sieben `prohibitions`.
+Keine Inferenz, kein VRAM, keine Hardware- oder Live-Abnahme; P0 bleibt offen.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.

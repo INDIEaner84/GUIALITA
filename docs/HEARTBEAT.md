@@ -25,11 +25,12 @@ Zuletzt fortgeschrieben: 2026-11-13.
 - MUSCAL bleibt CLI/HTTP, kein Desktop-Adapter, keine parallelen Agenten.
 - Extern geprüft: `gh run view 43621040654` → `success`, 16/16 Schritte des
   Workflows `State Consistency` grün (10 Prüfschritte); alle folgenden
-  Push-Läufe auf diesem Branch ebenfalls grün, auf dem Merge-Commit
-  `54c521d` zusätzlich der Pull-Request-Run `43626127557`. **PR #5** wurde
-  zur Übernahme nach `main` eröffnet (bei Erstellung `MERGEABLE`); der
-  vorbestehende externe `Auto PR Review`-Check ist wie schon bei PR #3/#4 rot
-  (`UNSTABLE`), kein Regression. Details und Verlauf:
+  Push-Läufe auf diesem Zweig ebenfalls grün, auf dem Merge-Commit `54c521d`
+  zusätzlich der Pull-Request-Run `43626127557`. **PR #5** ist `MERGED`
+  (`gh pr merge 5 --merge`, Merge-Commit `d899919`); `origin/main` steht auf
+  `d899919`, `State Consistency` darauf (`43642883664`) grün. Der
+  vorbestehende externe `Auto PR Review`-Check blieb wie bei PR #3/#4 rot
+  (`UNSTABLE`), war aber nicht blockierend. Details und Verlauf:
   `docs/INTEGRATION_STATUS.md`.
 - Aus `main` übernommen: `AGENTS.md`, `scripts/local_update.sh`,
   `backend/adapters/mock_adapter.py`, Diagnose-/Audit-Korrekturen und die

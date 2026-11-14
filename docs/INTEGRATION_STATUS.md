@@ -125,9 +125,32 @@ Pull-Request-Run `43626127557` grün. Der fremde Review-Workflow wurde nicht
 geändert — das braucht eine eigene Freigabe und vermutlich ein konfiguriertes
 Secret bzw. einen externen Dienst.
 
-Die Übernahme nach `main` ist eine eigene Review-Entscheidung und wird von
-diesem Bericht nicht vorgenommen; sie erfolgt als separater, ausdrücklich
-freigegebener Schritt.
+Die Übernahme nach `main` erfolgte anschließend als eigener, ausdrücklich
+freigegebener Schritt über PR #5 — siehe den Abschluss unten.
+
+## Abschluss: PR #5 gemergt
+
+```text
+gh pr merge 5 --merge                         → RC 0, MERGED
+gh api repos/.../pulls/5                      → state: closed, merged: true
+merge_commit_sha                              → d899919c900b8ebf9419a93e88c8bd58c19cb2c1
+origin/main                                   → 7caea0e -> d899919
+git merge-base --is-ancestor HEAD origin/main  → RC 0
+gh run view 43642883664 (push auf main)       → completed / success
+```
+
+GitHub-Zeitstempel des Merges: `2026-11-14T21:27:08Z`. Das ist ein
+Ereignis-Zeitstempel, **nicht** das Projektdatum der SSOT; `meta.updated`
+bleibt `2026-11-13` und wurde nicht an die Sandbox-Uhr angepasst.
+
+Zum Zeitpunkt des Merges waren der Baum des PR-Heads und der Baum von `main`
+identisch (`b4aa59cc09f2cda6394324e99a38c4b78f6539a3`): alle Änderungen sind
+vollständig übernommen. Der externe `review`-Check blieb rot, war aber nicht
+blockierend (PR #3/#4 ebenso). `arena/f82209dd-guialita` wurde nicht gelöscht.
+
+Dieser Abschluss wurde auf `arena/dfd44a8d-guialita` ergänzt, das von
+`d899919` abzweigt. Die nachfolgenden Dokumentations-Commits erzeugen bewusst
+einen neuen Baum; sie ändern kein Werkzeug und keine Testzahl.
 
 ## Grenzen
 
