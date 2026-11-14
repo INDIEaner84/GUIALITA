@@ -46,6 +46,51 @@ def http_post_wav(path: str, data: bytes):
         return r.status, json.loads(r.read().decode())
 
 
+_CAPABILITIES = None
+
+
+def capabilities() -> dict:
+    """Fähigkeiten des laufenden Backends (einmalig pro Testlauf ermittelt).
+
+    Quelle ist /diagnostics, damit die Suite selbst entscheidet, was auf
+    dieser Maschine wirklich vorhanden ist — statt pauschal abzubrechen.
+    """
+    global _CAPABILITIES
+    if _CAPABILITIES is None:
+        try:
+            _, data = http_get("/diagnostics")
+            _CAPABILITIES = data.get("capabilities", {}) or {}
+        except Exception:
+            _CAPABILITIES = {}
+    return _CAPABILITIES
+
+
+def require_real(capability: str, what: str):
+    """Überspringt einen Test sauber, wenn die echte Runtime fehlt.
+
+    Grund: Ohne Modelldatei/whisper.cpp lief früher die GESAMTE Suite als
+    NOT_EXECUTED — auch die Tests, die nur den API-Vertrag prüfen. Jetzt
+    wird der Vertrag geprüft und nur der runtime-abhängige Teil mit
+    Begründung übersprungen (skip != fail).
+    """
+    if not capabilities().get(capability, False):
+        raise unittest.SkipTest(f"{what} — Fähigkeit '{capability}' fehlt auf dieser Maschine")
+
+
+def require_chat(what: str):
+    """Überspringt Tests, die einen funktionierenden Chat-Pfad brauchen.
+
+    Der Pfad ist entweder echt (llama-cpp-python + Modell) oder über den
+    Test-Adapter (GUIALITA_MOCK_LLM=1) verfügbar. Ohne beides kann kein
+    Erfolg geprüft werden — dann ist es eine fehlende Voraussetzung, kein
+    Codefehler.
+    """
+    caps = capabilities()
+    if not (caps.get("llm", False) or caps.get("llm_mock", False)):
+        raise unittest.SkipTest(
+            f"{what} — weder echte LLM-Runtime noch Mock-Adapter verfügbar")
+
+
 def make_test_wav(path: str, duration_s: float = 1.0, sample_rate: int = 16000):
     """Erzeugt eine stille Test-WAV (16-bit PCM mono)."""
     n = int(duration_s * sample_rate)
@@ -97,10 +142,18 @@ class TestDiagnostics(unittest.TestCase):
     def test_diagnostics_model_paths_are_absolute_and_checked(self):
         _, data = http_get("/diagnostics")
         self.assertGreater(len(data["models"]), 0)
+        real = 0
         for mid, m in data["models"].items():
+            # Der Mock-Adapter hat konstruktionsbedingt keine Modelldatei —
+            # er wird geprüft, aber nicht an Dateipfaden gemessen.
+            if m.get("adapter") == "mock":
+                self.assertEqual(m["path"], "", f"{mid}: Mock darf keinen Pfad haben")
+                continue
+            real += 1
             self.assertTrue(m["path"].startswith("/"), f"{mid}: Pfad nicht absolut")
             self.assertNotIn("${", m["path"], f"{mid}: Platzhalter nicht aufgelöst")
             self.assertIn("exists", m)
+        self.assertGreater(real, 0, "Mindestens ein echtes Modell muss konfiguriert sein")
 
     def test_diagnostics_reports_missing_capabilities(self):
         _, data = http_get("/diagnostics")
@@ -122,6 +175,7 @@ class TestModelConnectivity(unittest.TestCase):
         self.assertGreater(len(available), 0, "Mindestens ein Modell muss verfuegbar sein")
 
     def test_granite_model_available(self):
+        require_real("llm", "granite-3b (GGUF + llama-cpp-python) nicht vorhanden")
         _, data = http_get("/models")
         granite = [m for m in data["models"] if m["id"] == "granite-3b"]
         self.assertEqual(len(granite), 1)
@@ -140,6 +194,7 @@ class TestChatAPI(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 404)
 
     def test_chat_returns_success_format(self):
+        require_chat("Chat-Erfolgsformat nicht prüfbar")
         status, data = http_post("/chat", {"message": "Sag nur: OK", "model": "granite-3b"})
         self.assertEqual(status, 200)
         self.assertEqual(data["status"], "success")
@@ -152,6 +207,7 @@ class TestChatAPI(unittest.TestCase):
 class TestEndToEnd(unittest.TestCase):
     def test_real_lfm_response(self):
         """Browser/API -> Chat Request -> LFM -> Real Response"""
+        require_real("llm", "echte LLM-Runtime fehlt — Mock zählt hier nicht als LFM-Antwort")
         status, data = http_post(
             "/chat",
             {
@@ -181,6 +237,7 @@ class TestAudioStatus(unittest.TestCase):
         self.assertIn("status", data)
 
     def test_stt_online(self):
+        require_real("stt", "whisper.cpp (CLI oder ggml-base.bin) nicht vorhanden")
         _, data = http_get("/audio/status")
         self.assertEqual(data["status"], "online")
         self.assertEqual(data["engine"], "whisper.cpp")
@@ -188,6 +245,7 @@ class TestAudioStatus(unittest.TestCase):
 
 class TestAudioTranscribe(unittest.TestCase):
     def test_valid_wav_transcribes(self):
+        require_real("stt", "whisper.cpp (CLI oder ggml-base.bin) nicht vorhanden")
         status, data = http_post_wav("/audio/transcribe", open(TEST_AUDIO, "rb").read())
         self.assertEqual(status, 200)
         self.assertEqual(data["status"], "success")
@@ -230,6 +288,8 @@ class TestAudioChat(unittest.TestCase):
 
     def test_audio_chat_full_pipeline(self):
         """Audio -> STT -> Transcript -> bestehende Chat-Pipeline -> LFM."""
+        require_real("stt", "whisper.cpp (CLI oder ggml-base.bin) nicht vorhanden")
+        require_real("llm", "echte LLM-Runtime fehlt (chat_runtime muss 'llamacpp' sein)")
         with open(TEST_AUDIO, "rb") as f:
             wav = f.read()
         payload = {
@@ -248,6 +308,62 @@ class TestAudioChat(unittest.TestCase):
         self.assertIn("total_ms", data)
         self.assertEqual(data["chat_runtime"], "llamacpp")
         self.assertEqual(data["stt_runtime"], "whisper.cpp")
+
+
+class TestMockRuntime(unittest.TestCase):
+    """Vollständiger API-Pfad ohne Modelle/GPU — über den Test-Adapter.
+
+    Diese Tests sind nur aussagekräftig, wenn GUIALITA_MOCK_LLM=1 gesetzt ist.
+    Sie beweisen, dass Session → Memory → Retrieval → ChatService → Adapter →
+    Persistenz → Audit lokal laufen, ohne dass eine echte Runtime nötig ist.
+    Sie ersetzen KEINE Prüfung der echten LLM-/STT-Runtime.
+    """
+
+    def setUp(self):
+        if not capabilities().get("llm_mock", False):
+            self.skipTest("GUIALITA_MOCK_LLM ist nicht aktiv (kein Test-Adapter)")
+
+    def test_mock_flag_is_reported(self):
+        _, data = http_get("/diagnostics")
+        self.assertTrue(data["mock_llm_enabled"])
+        self.assertTrue(data["capabilities"]["llm_mock"])
+        # Mock darf die echte Fähigkeit nicht vortäuschen:
+        self.assertFalse(data["ready_for_voice_turn"],
+                         "Mock-Modus darf nicht als voice-ready gemeldet werden")
+
+    def test_mock_chat_full_loop_persists(self):
+        status, data = http_post("/chat", {"message": "Mock-Loop-Test", "model": "mock-1b"})
+        self.assertEqual(status, 200)
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["runtime"], "mock")
+        self.assertIn("MOCK-LLM-OK", data["response"])
+        self.assertTrue(data["session_id"].startswith("SES-"))
+        self.assertTrue(data["message_id"].startswith("MSG-"))
+
+        # Persistenz prüfen: beide Nachrichten müssen in der Session liegen.
+        _, msgs = http_get(f"/sessions/{data['session_id']}/messages")
+        self.assertEqual(msgs["count"], 2)
+        self.assertEqual(msgs["messages"][0]["role"], "user")
+        self.assertEqual(msgs["messages"][1]["role"], "assistant")
+
+    def test_mock_chat_is_deterministic(self):
+        _, first = http_post("/chat", {"message": "deterministisch", "model": "mock-1b"})
+        _, second = http_post("/chat", {"message": "deterministisch", "model": "mock-1b"})
+        self.assertEqual(first["response"], second["response"])
+
+    def test_mock_session_export_contains_no_secrets(self):
+        _, data = http_post("/chat", {"message": "Export-Test", "model": "mock-1b"})
+        sid = data["session_id"]
+        req = urllib.request.Request(f"{BASE_URL}/sessions/{sid}/export")
+        with urllib.request.urlopen(req, timeout=30) as r:
+            export = json.loads(r.read().decode())
+        self.assertEqual(export["status"], "success")
+        self.assertEqual(export["message_count"], 2)
+        # Audit schreibt nur Metadaten — niemals Antwortinhalte.
+        for event in export["audit_events"]:
+            self.assertNotIn("response", event)
+            self.assertNotIn("transcript", event)
+            self.assertNotIn("content", event)
 
 
 if __name__ == "__main__":

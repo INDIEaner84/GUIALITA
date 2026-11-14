@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import sys
@@ -24,7 +25,28 @@ from backend.audio.voice_activation import VoiceActivationService
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 log = logging.getLogger("guialita")
 
-app = FastAPI(title="GUIALITA - Local LFM Assistant", version="0.1.0")
+@contextlib.asynccontextmanager
+async def lifespan(_app: "FastAPI"):
+    """Lebenszyklus: Start-Logging + sauberes Freigeben der Ressourcen.
+
+    Ersetzt das deprecatede ``@app.on_event("shutdown")`` (FastAPI >= 0.93).
+    ``manager``/``store`` werden erst nach dieser Definition instanziiert,
+    der Zugriff erfolgt aber zur Laufzeit — damit bleibt die Reihenfolge sicher.
+    """
+    cfg = manager._config.get("server", {})
+    log.info(
+        "GUIALITA Backend bereit (Host %s, Port %s, mock_llm=%s)",
+        cfg.get("host", "0.0.0.0"), cfg.get("port", 8080), manager.mock_enabled,
+    )
+    try:
+        yield
+    finally:
+        manager.close()
+        store.close()
+        log.info("GUIALITA Backend sauber beendet")
+
+
+app = FastAPI(title="GUIALITA - Local LFM Assistant", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,6 +100,11 @@ def diagnostics():
         "stt": d["stt"]["available"],
         "tts": d["tts"]["available"],
     }
+    # Der Mock-Adapter ist Testinfrastruktur, KEINE Runtime-Fähigkeit:
+    # er wird nur zusätzlich gemeldet (llm_mock=True) und macht `llm` nicht
+    # wahr — ready_for_voice_turn bleibt ohne echte Modelle korrekt False.
+    if d["mock_llm_enabled"]:
+        capabilities["llm_mock"] = True
     d["capabilities"] = capabilities
     missing = [k for k, v in capabilities.items() if not v]
     d["missing_capabilities"] = missing
@@ -509,6 +536,7 @@ def memory_status():
         return MemoryStatusResponse(
             enabled=st["enabled"],
             embedding_version=st["embedding_version"],
+            embedding_dimensions=st.get("embedding_dimensions", 0),
             memory_count=st["memory_count"],
             database_available=st["database_available"],
             entity_count=store.count_entities(),
@@ -665,12 +693,6 @@ async def audio_tts(request: Request):
             status_code=500,
             content={"status": "error", "error": "tts_failed", "details": str(e)},
         )
-
-
-@app.on_event("shutdown")
-def shutdown():
-    manager.close()
-    store.close()
 
 
 if __name__ == "__main__":

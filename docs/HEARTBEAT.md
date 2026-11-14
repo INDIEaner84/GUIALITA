@@ -5,7 +5,35 @@ Aktualisiert nach jedem abgeschlossenen autonomen
 Arbeitsabschnitt; keine internen Gedankengänge, nur Status, Evidenz und nächste
 Schritte.
 
-## Aktueller Status — 2026-08-22
+## Aktueller Status — 2026-11-13
+
+**Abschnitt:** Lokales Update + Verifikation (Agent-Anweisung `AGENTS.md`)
+
+| Bereich | Status |
+|---|---|
+| Agent-Anweisungsprompt | implementiert: `AGENTS.md` (OpenCode lädt sie automatisch) |
+| Update + Verifikation in einem Schritt | implementiert: `scripts/local_update.sh [--mock]` |
+| Test-Adapter ohne Modell/GPU | implementiert: `backend/adapters/mock_adapter.py`, `GUIALITA_MOCK_LLM=1` |
+| Testbestand | 145 Funktionen in 9 Suiten (`test_api.py` 23 → 27) |
+| Testlauf Sandbox (mit Mock) | **6 PASS · 0 FAIL · 3 NOT_EXECUTED** — 108 bestanden, 16 skip, Exit 0 |
+| Unit-Schicht `scripts/test.py` | PASS — 46 Tests |
+| Backend-Start/Stop | PASS — `/health` online, `lifespan` statt deprecatedem `on_event` |
+| API-Vertrag (400/404/415/500) | geprüft über Rauchprobe und `test_api.py` |
+| Memory-Status-Korrektur | `embedding_version: 1` (war fälschlich 512) + `embedding_dimensions: 512` |
+| Audit-Ablage | folgt jetzt `GUIALITA_DATA_ROOT`; `data/*.jsonl` ignoriert |
+| Echte LLM-/STT-/TTS-Runtime | **nicht nachgewiesen** — keine Modelle, kein whisper.cpp, kein LFM-Audio |
+| Voice-Turn-Neuvermessung (Gate) | weiter OPEN — braucht Zielhardware |
+| `main`-Abgleich | keine neuen Commits auf `origin/main`; Merge Konflikt-frei (fast-forward) |
+| Umgebungs-Wiederherstellung | Branch-Zeiger verlustfrei auf `5e68392` zurückgesetzt, `.venv` neu gebaut |
+| Reproduzierbarkeitsregel | dokumentiert: gitignored-Pfade neu aufbauen, Verifikation neu ausführen |
+| Vorschau-Tauglichkeit | geprüft: fremder `Host` → 200, CORS `*`, Frontend nur relative Pfade |
+| Session-Abschluss | archiviert; Überführung nach `main` per PR (durch Nutzer autorisiert) |
+
+Mock-Läufe werden als `PASS (mock)` ausgewiesen: Sie beweisen Chat-, Memory-,
+Audit- und API-Pfad, **nicht** Inferenz, GPU, STT oder TTS.
+Details und vollständige Evidenz: `docs/SESSION_LOG.md` (2026-11-13).
+
+## Status — 2026-08-22 (vorangegangener Abschnitt)
 
 **Milestone:** M5 — Performance-Baseline
 

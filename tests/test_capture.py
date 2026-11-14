@@ -32,8 +32,21 @@ RESULTS = []
 
 
 def reset_inbox():
+    """Entfernt NUR die von diesem Test erzeugten WAVs aus audio/inbox/.
+
+    Vorher wurde das Verzeichnis komplett geleert. Damit löschte jeder Lauf
+    (auch ein Lauf ohne Mikrofon, der nur bis hierher kam) versionierte
+    Repository-Daten wie audio/inbox/audio_*.json. Alle Auswertungen dieser
+    Suite zählen ausschließlich *.wav — andere Dateien bleiben unangetastet.
+    """
+    if not os.path.isdir(INBOX):
+        return
     for f in os.listdir(INBOX):
-        os.remove(os.path.join(INBOX, f))
+        if f.endswith(".wav"):
+            try:
+                os.remove(os.path.join(INBOX, f))
+            except OSError as exc:
+                print(f"[WARN] {f} konnte nicht entfernt werden: {exc}")
 
 
 def wav_files():

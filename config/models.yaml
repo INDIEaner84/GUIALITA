@@ -88,3 +88,13 @@ models:
     n_gpu_layers: 99
     max_tokens: 512
     chat_template: llama3
+
+  # Test-Adapter ohne Modell/GPU — für lokale Entwicklung und Tests.
+  # Aktivierung: GUIALITA_MOCK_LLM=1 (siehe .env.example) oder direkt
+  # dieses Modell in der UI / per API wählen. Kein Produktions-Ersatz.
+  mock-1b:
+    name: mock-1b (deterministic test adapter)
+    adapter: mock
+    path: ""
+    max_tokens: 512
+    chat_template: mock

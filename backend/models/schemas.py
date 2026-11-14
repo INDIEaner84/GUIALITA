@@ -41,6 +41,7 @@ class ErrorResponse(BaseModel):
 class MemoryStatusResponse(BaseModel):
     enabled: bool
     embedding_version: int
+    embedding_dimensions: int = 0
     memory_count: int
     database_available: bool
     entity_count: int = 0

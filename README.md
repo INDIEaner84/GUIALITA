@@ -9,12 +9,24 @@
 
 ## Schnellstart
 
+Ein Kommando richtet ein, startet und testet alles lokal:
+
+```bash
+bash scripts/local_update.sh            # mit echten Modellen
+bash scripts/local_update.sh --mock     # ohne Modelle/GPU (Test-Adapter)
+```
+
+Manuell, Schritt für Schritt:
+
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
+bash scripts/setup_local.sh             # findet Modelle/Runtime → schreibt .env
 .venv/bin/python scripts/doctor.py
 GUIALITA_VENV="$PWD/.venv" bash scripts/start.sh
 ```
+
+Anweisungen für Coding-Agenten (OpenCode u. a.) stehen in [`AGENTS.md`](AGENTS.md).
 
 Die Modellpfade in `config/models.yaml` müssen zur lokalen Installation passen.
 Absolute Pfade können durch Umgebungsvariablen ersetzt werden, zum Beispiel:
@@ -175,19 +187,47 @@ Listet alle konfigurierten Modelle mit Verfügbarkeit.
 
 ## Tests
 
-Voraussetzung: Backend läuft.
+Kanonischer Einstieg — jede Suite läuft genau einmal, keine Doppelzählung:
 
 ```bash
-cd /media/hz/_Ext_Seagat/GUIALITA
-/home/hz/.guialita-venv/bin/python tests/test_api.py
+python3 scripts/run_all_tests.py           # alle 9 Suiten
+python3 scripts/run_all_tests.py --list    # nur Inventar
+python3 scripts/run_all_tests.py --only api
+python3 scripts/run_all_tests.py --yaml    # Report nach docs/measurements/
 ```
 
-Enthaltene Tests:
+Voraussetzung: Backend läuft (`bash scripts/start.sh`). Jede Suite wird vorher
+auf ihre Voraussetzungen geprüft und ehrlich klassifiziert:
 
-1. **API Health Test** - `/health` liefert API- und Runtime-Status
-2. **Model Connectivity Test** - Modelle gelistet und verfügbar
-3. **Chat API Test** - Erfolg, Fehlerfälle, Format
-4. **End-to-End Test** - echter Chat: "…CONNECTION TEST OK" muss vom LFM kommen
+| Klassifizierung | Bedeutung |
+|---|---|
+| `PASS` | gelaufen, alle ausgeführten Tests bestanden |
+| `PASS (mock)` | gelaufen dank Test-Adapter — echte LLM-Runtime **nicht** nachgewiesen |
+| `FAIL` | echter Fehler — muss repariert werden |
+| `NOT_EXECUTED` | Voraussetzung fehlt (Modell, Runtime, Mikrofon); zählt **nicht** als bestanden |
+
+Enthaltene Prüfungen (Auszug `tests/test_api.py`):
+
+1. **API Health** - `/health` liefert API- und Runtime-Status
+2. **Diagnostics** - Pfade absolut, aufgelöst, Fähigkeiten + `ready_for_voice_turn`
+3. **Model Connectivity** - Modelle gelistet und verfügbar
+4. **Chat API** - Erfolg, Fehlerfälle (400/404), Format
+5. **End-to-End** - echter Chat: "…CONNECTION TEST OK" muss vom LFM kommen
+6. **Mock-Runtime** - voller Chat-/Memory-/Audit-Pfad ohne Modelle und ohne GPU
+
+### Testen ohne Modelle (`--mock`)
+
+Auf einem frischen Klon, in CI oder ohne GPU läuft der Chat-Pfad über den
+deterministischen Test-Adapter (`backend/adapters/mock_adapter.py`):
+
+```bash
+GUIALITA_MOCK_LLM=1 bash scripts/start.sh
+python3 scripts/run_all_tests.py
+```
+
+Das beweist API-Vertrag, Sessions, Memory/Retrieval, Graph, Audit und Export.
+Es beweist **keine** Inferenz, keine GPU, kein STT und kein TTS — diese Tests
+bleiben mit Begründung übersprungen. `ready_for_voice_turn` bleibt `false`.
 
 ---
 
