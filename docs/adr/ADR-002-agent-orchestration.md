@@ -357,6 +357,14 @@ freigegeben wären. `current.hard_stop`, `next_authorized_phase: NONE` und
   `tests/test_doc_consistency.py` (5). Runner und SSOT melden **307
   Testfunktionen in 19 Suiten**.
 
+- **Live-Contract geprüft (2026-11-13).** `scripts/contract_check.py` startet
+  ein Fake-Backend mit den echten `ChatRequest`/`ChatResponse`-Feldern aus
+  `backend/models/schemas.py` sowie `/health` und `/models` nach
+  `backend/manager.py`. Damit sind Request-Aufbau, Response-Parsing,
+  Fehlerantworten, `--model`, Budgetplan und gemessene `switch`-Wanduhr für
+  `eval.py`, `modelsctl.py` und `muscal.py` belegt. **Kein** Inferenz-, VRAM-
+  oder Latenznachweis: die Antwortwerte des Fake-Backends sind synthetisch.
+
 **Gemessen in der Sandbox:** `eval.py --dry-run` (19/19 Urteile wie erwartet),
 `eval.py --dry-run --all-suites` (4/4), `build_golden.py --check`,
 `build_roles.py --check`, `roles.py validate --check-mirror`,

@@ -157,6 +157,14 @@ class TestProcessDelegation(unittest.TestCase):
         self.assertEqual(script.call_args[0][1], ["--restart"])
         http.assert_called_once_with("http://localhost:8080/health")
 
+        # /health antwortet, aber die Runtime ist offline: kein Erfolg behaupten.
+        offline = {"primary_runtime": {"runtime": "llama-cpp-python",
+                                       "status": "offline", "gpu": False}}
+        with mock.patch.object(modelsctl, "run_script",
+                               return_value=self.fake_proc()), \
+             mock.patch.object(modelsctl, "http_json", return_value=offline):
+            self.assertEqual(modelsctl.cmd_start(self.args()), 1)
+
     def test_start_reports_script_failure(self):
         with mock.patch.object(modelsctl, "run_script",
                                return_value=self.fake_proc(code=1)):

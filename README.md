@@ -199,6 +199,7 @@ python3 scripts/roles.py validate --check-mirror
 python3 scripts/roles.py switch router planner
 python3 scripts/muscal.py run "Aufgabe" --dry-run
 python3 scripts/muscal.py serve --port 8099
+python3 scripts/contract_check.py              # Live-Clients gegen echtes HTTP-Schema
 ```
 
 `eval.py --live`, `modelsctl.py switch/start/stop` und `muscal.py --live`
@@ -262,6 +263,7 @@ GUIALITA/
 │   ├── build_golden.py       # evals/golden.json erzeugen/prüfen
 │   ├── build_roles.py        # config/roles.yaml erzeugen/prüfen
 │   ├── check_docs.py         # Zahlen und Grenzen in den Dokumenten
+│   ├── contract_check.py     # Live-Clients gegen echtes HTTP-Schema (Fake-Backend)
 │   ├── start.sh              # Hauptstart (Menü + Terminal)
 │   ├── stop.sh               # Stoppt nur GUIALITA-Prozesse
 │   ├── download_models.sh    # LFM-Modelle von Hugging Face

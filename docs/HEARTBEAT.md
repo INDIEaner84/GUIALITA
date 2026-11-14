@@ -12,8 +12,10 @@ Zuletzt fortgeschrieben: 2026-11-13.
 - Vollständiger Sandbox-Lauf: **7 PASS, 12 NOT EXECUTED, 0 FAIL**. Kein Test
   aus einer `NOT_EXECUTED`-Suite wurde als bestanden gezählt.
 - ADR-002 P3–P6: Eval-Harness, VRAM-Budget/Lifecycle, Rollen-Registry und
-  MUSCAL CLI/HTTP sind als Selbsttests im Trockenlauf geprüft. Live-Pfade,
-  echte VRAM-Messung und Hardware-Latenzen sind **nicht abgenommen**.
+  MUSCAL CLI/HTTP sind als Selbsttests im Trockenlauf geprüft.
+  `scripts/contract_check.py` belegt zusätzlich die Live-Clients gegen das
+  echte HTTP-Schema. Live-Pfade, echte VRAM-Messung und Hardware-Latenzen sind
+  **nicht abgenommen**.
 - **P0** (Voice-Turn-Nachmessung) bleibt offen; `current.hard_stop: true`,
   `next_authorized_phase: NONE` und `prohibitions` sind unverändert.
 - MUSCAL bleibt CLI/HTTP, kein Desktop-Adapter, keine parallelen Agenten.

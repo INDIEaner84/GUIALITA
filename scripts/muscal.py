@@ -183,7 +183,11 @@ class LiveBackend:
         started = time.perf_counter()
         with urllib.request.urlopen(request, timeout=self.timeout) as response:
             body = json.loads(response.read())
-        return str(body.get("response", "")), (time.perf_counter() - started) * 1000
+        latency_ms = (time.perf_counter() - started) * 1000
+        if isinstance(body, dict) and body.get("status") == "error":
+            raise RuntimeError(f"Backend-Fehler: {body.get('error', '?')} — "
+                               f"{body.get('details', '')}")
+        return str(body.get("response", "")), latency_ms
 
 
 # ----------------------------------------------------------------------------

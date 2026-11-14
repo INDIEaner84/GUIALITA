@@ -127,6 +127,7 @@ python3 scripts/roles.py validate --check-mirror    # JSON ↔ YAML
 python3 scripts/roles.py switch router planner      # kein Modellwechsel nötig
 python3 scripts/muscal.py run "Aufgabe" --dry-run   # sequenzielle Kette
 python3 scripts/muscal.py serve --port 8099         # HTTP, Default 127.0.0.1
+python3 scripts/contract_check.py                  # Live-Contract, Fake-Backend
 python3 scripts/check_docs.py                      # Zahlen und Grenzen
 ```
 

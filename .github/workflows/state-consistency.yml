@@ -16,6 +16,9 @@ name: State Consistency
 #   5. Aktuelle Zahlen und Grenzen in den Dokumenten.
 #
 # Siehe docs/adr/ADR-002-agent-orchestration.md, Entscheidung D7 und 5a.
+#
+# Action-Versionen am 2026-11-13 gegen die GitHub-Tags geprüft:
+#   actions/checkout v6 und actions/setup-python v5 existieren.
 
 on:
   push:
@@ -66,6 +69,9 @@ jobs:
 
       - name: MUSCAL-Kette im Trockenlauf prüfen
         run: python3 scripts/muscal.py run "CI-Selbsttest" --dry-run
+
+      - name: Live-Contract gegen das echte HTTP-Schema prüfen
+        run: python3 scripts/contract_check.py
 
       - name: Dokumenten-Konsistenz prüfen
         run: python3 scripts/check_docs.py

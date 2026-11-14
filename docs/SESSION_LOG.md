@@ -400,6 +400,70 @@ Unverändert: P0, alle Live-/GPU-Messungen, `current.hard_stop: true`,
 `next_authorized_phase: NONE`, `prohibitions`. Die Live Preview nutzt den
 Stub und ist **kein** Modellnachweis.
 
+## 2026-11-13 — Live-Contract gegen das echte Backend-Schema geprüft
+
+### Ausgangslage
+
+Die Live-Pfade von `eval.py`, `modelsctl.py` und `muscal.py` waren bisher nur
+kompiliert und im Trockenlauf geprüft. Ohne Backend blieb unbelegt, ob ihre
+Requests und Response-Parser zum tatsächlichen Vertrag in
+`backend/models/schemas.py` und `backend/manager.py` passen.
+
+### Prüfung des Vertrags
+
+- `ChatRequest` verlangt nur `message`; `model` und `session_id` sind optional.
+  Alle drei Clients senden genau diese Form — kein 422-Risiko.
+- `ChatResponse` liefert `status`, `response`, `model`, `latency_ms`. Die Clients
+  lesen `response` und `latency_ms`; `ErrorResponse` trägt `status: "error"`.
+- `GET /models` liefert `available` = **Datei vorhanden**, nicht „im VRAM
+  geladen". `modelsctl.py` behauptete an zwei Stellen einen Ladezustand. Fix:
+  `--loaded A,B` für `plan`/`switch`, sonst ausdrücklich „UNBEKANNT" mit
+  genannter Annahme; `status` weist auf die Bedeutung von `available` hin.
+- `modelsctl.py start` meldete Erfolg, sobald `/health` antwortete — auch bei
+  `primary_runtime.status: offline`. Jetzt Exitcode 1 mit klarer Begründung.
+- `eval.py` und `muscal.py` behandelten eine 200-Antwort mit `status: "error"`
+  als leere Modellantwort. Beide werfen jetzt einen benannten Fehler.
+
+### Neuer Selbsttest
+
+`scripts/contract_check.py` startet ein Fake-Backend auf `127.0.0.1:0`, das
+`/health`, `/models` und `POST /chat` mit den echten Feldern bedient. Geprüft
+werden Request-Aufbau, Rollenprompt, `--model`-Override, `eval.run_live`,
+`muscal.run_pipeline`, `modelsctl status/health/plan/switch`, Fehlerantworten,
+404 bei unbekanntem Modell und die offline-Runtime bei `start`.
+
+```text
+python3 scripts/contract_check.py → OK, RC 0
+  ChatRequest/ChatResponse, /health, /models, /chat
+  Clients: eval.py, modelsctl.py, muscal.py
+  Fake-Modelle: granite-3b, granite-8b, lfm-vision-3b
+```
+
+Die Werte des Fake-Backends (`latency_ms: 12.5`) sind synthetisch. Der Lauf
+belegt die **Vertragsform**, keine Inferenz, keine VRAM-Belegung, keine echte
+Wechselzeit.
+
+### Weitere Prüfungen
+
+```text
+python3 -m compileall -q backend scripts tests        → RC 0
+python3 scripts/run_all_tests.py --check-state         → Keine Abweichung (307/19)
+python3 scripts/check_docs.py                         → OK, 13 Dokumente
+python3 scripts/build_golden.py --check                → OK
+python3 scripts/build_roles.py --check                 → OK
+python3 scripts/roles.py validate --check-mirror       → OK
+python3 scripts/eval.py --dry-run                     → 19/19
+python3 scripts/run_all_tests.py --only <7 Suiten>    → 7 PASS, 0 FAIL
+```
+
+Die drei betroffenen Testsuiten wurden um Zusatzsprüche erweitert, **ohne neue
+Testfunktionen**: 25/33/26 Tests, Gesamtzahl bleibt 307/19.
+
+### Offen
+
+Unverändert: P0, Live-Inferenz, echte VRAM-/Latenzmessung,
+`current.hard_stop: true`, `next_authorized_phase: NONE`, `prohibitions`.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.

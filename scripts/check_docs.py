@@ -158,6 +158,7 @@ def required_phrases(total: int, suites: int, root: Path = ROOT) -> dict[str, li
         ],
         ".github/workflows/state-consistency.yml": [
             "python3 scripts/check_docs.py",
+            "python3 scripts/contract_check.py",
         ],
     }
 

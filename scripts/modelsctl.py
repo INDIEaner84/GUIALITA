@@ -10,7 +10,7 @@ Orchestrierung, die bei jedem Schritt Sekunden verliert.
 
 Dieses Skript macht daraus eine Rechenaufgabe:
 
-    status   was ist konfiguriert, was ist vorhanden, was ist geladen
+    status   was konfiguriert und als Datei vorhanden ist (kein Ladezustand)
     health   Runtime und GPU-Zustand aus /health
     budget   was passt in den Speicher — Gewichte + Overhead + Reserve
     plan     was müsste weichen, damit ein Modell geladen werden kann
@@ -35,6 +35,10 @@ Was es absichtlich nicht tut
 * **Keine erfundenen Entlade-Endpunkte.** Das Backend hat keinen
   ``/models/unload``; ``unload`` sagt das und stoppt das Backend nach
   ausdrücklichem ``--yes``.
+* **Kein erfundener Ladezustand.** ``GET /models`` meldet ``available`` =
+  „Datei vorhanden", nicht „im VRAM geladen". ``plan`` und ``switch`` nutzen
+  deshalb ``--loaded`` oder arbeiten mit einer ausdrücklich als unbekannt
+  markierten Annahme. Sie behaupten nie, den VRAM-Inhalt zu kennen.
 * **Keine Zahlen ohne Messung.** ``switch`` nimmt die Zeit tatsächlich ab; die
   Zahl aus ``config/model_budget.json`` ist eine Schätzung und als solche
   gekennzeichnet.
@@ -191,8 +195,14 @@ def http_json(url: str, payload: dict | None = None, timeout: float = 60.0):
 def live_state(base_url: str) -> dict:
     health = http_json(base_url + "/health")
     models = http_json(base_url + "/models").get("models", [])
-    return {"health": health, "models": models,
-            "sizes": {m["id"]: m.get("size_gb") for m in models if m.get("size_gb")}}
+    return {
+        "health": health,
+        "models": models,
+        "sizes": {m["id"]: m.get("size_gb") for m in models if m.get("size_gb")},
+        "available_ids": [m["id"] for m in models if m.get("available")],
+        # /models liefert keinen Ladezustand — bewusst False, nicht geraten.
+        "load_state_known": False,
+    }
 
 
 def run_script(name: str, extra: list[str] | None = None,
@@ -245,6 +255,9 @@ def cmd_status(base_url: str) -> int:
         print(f"  {model['id']:<18}{str(model.get('name'))[:19]:<20}"
               f"{str(model.get('adapter')):<10}{size:>7}  "
               f"{'ja' if model.get('available') else 'NEIN'}")
+    print()
+    print("  'Vorhanden' = Datei gefunden. Das Backend meldet keinen "
+          "VRAM-Ladezustand.")
     return EXIT_OK
 
 
@@ -310,10 +323,16 @@ def cmd_plan(args, budget: dict) -> int:
     try:
         state = live_state(args.url)
         live_sizes = state["sizes"]
-        loaded = [m["id"] for m in state["models"] if m.get("available")]
+        # available != geladen. Ohne --loaded wird der Ladezustand als
+        # unbekannt behandelt und die Annahme ausdrücklich genannt.
+        loaded = [m.strip() for m in (getattr(args, "loaded", None) or "").split(",")
+                  if m.strip()]
+        if not loaded:
+            print("  Ladezustand: UNBEKANNT — /models meldet nur Dateiverfügbarkeit.")
+            print("  Annahme für diese Budgetrechnung: nichts zusätzlich geladen.")
     except Exception:  # noqa: BLE001
-        print("  Backend nicht erreichbar — Plan ohne Ladezustand.")
-        print("  Annahme: nichts ist geladen, nur das Budget zählt.")
+        print("  Backend nicht erreichbar — Plan ohne Live-Größen.")
+        print("  Annahme: deklarierte Größen, Ladezustand unbekannt.")
 
     result = plan(args.model, loaded, budget, live_sizes)
     print(f"  Ziel: {args.model}")
@@ -342,7 +361,11 @@ def cmd_switch(args, budget: dict) -> int:
         print("  Mit --force trotzdem versuchen (dann ist der Absturz wahrscheinlich).")
         return EXIT_RISK
 
-    loaded = [m["id"] for m in state["models"] if m.get("available")]
+    loaded = [m.strip() for m in (getattr(args, "loaded", None) or "").split(",")
+              if m.strip()]
+    if not loaded:
+        print("  Ladezustand: UNBEKANNT — /models meldet nur Dateiverfügbarkeit.")
+        print("  Der Budgetplan geht daher von keinem zusätzlich geladenen Modell aus.")
     switch_plan = plan(args.model, loaded, budget, live_sizes)
     if switch_plan["unload"]:
         print(f"  Budget-Plan: {', '.join(switch_plan['unload'])} müsste weichen.")
@@ -361,6 +384,10 @@ def cmd_switch(args, budget: dict) -> int:
         return EXIT_RISK
     wall_ms = (time.perf_counter() - started) * 1000
 
+    if isinstance(body, dict) and body.get("status") == "error":
+        print(f"  Wechsel fehlgeschlagen: {body.get('error', '?')} — "
+              f"{body.get('details', '')}")
+        return EXIT_RISK
     reported = body.get("latency_ms") if isinstance(body, dict) else None
     print(f"  Wanduhr bis zur ersten Antwort : {wall_ms:.0f} ms")
     if reported:
@@ -396,6 +423,10 @@ def cmd_start(args) -> int:
     runtime = health.get("primary_runtime", {})
     print(f"  /health: {runtime.get('runtime')} — {runtime.get('status')}")
     print("  Ollama wurde nur erkannt, nicht verändert (start.sh, Abschnitt 6).")
+    if runtime.get("status") != "online":
+        print("  /health antwortet, aber die primäre Runtime ist NICHT online —")
+        print("  kein Erfolg behauptet.")
+        return EXIT_RISK
     return EXIT_OK
 
 
@@ -448,6 +479,8 @@ def main() -> int:
 
     plan_parser = sub.add_parser("plan", help="was für ein Modell weichen muss")
     plan_parser.add_argument("model")
+    plan_parser.add_argument("--loaded", metavar="A,B",
+                             help="tatsächlich geladene Modelle; /models meldet nur Dateiverfügbarkeit")
 
     for command, help_text in (("switch", "Modell wechseln und messen"),
                                ("load", "Modell über ersten Chat-Turn laden")):
@@ -455,6 +488,8 @@ def main() -> int:
         child.add_argument("model")
         child.add_argument("--force", action="store_true",
                            help="trotz Budget-Warnung versuchen")
+        child.add_argument("--loaded", metavar="A,B",
+                           help="tatsächlich geladene Modelle für den Budgetplan")
 
     for command in ("start", "stop", "unload"):
         child = sub.add_parser(command, help=f"{command} über die vorhandenen Skripte")

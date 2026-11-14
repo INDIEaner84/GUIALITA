@@ -11,6 +11,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(PROJECT_DIR, "scripts"))
@@ -18,6 +19,20 @@ sys.path.insert(0, os.path.join(PROJECT_DIR, "scripts"))
 import muscal  # noqa: E402
 
 ROLES = muscal.load_roles()["roles"]
+
+
+class FakeHTTPResponse:
+    def __init__(self, payload):
+        self.payload = json.dumps(payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self):
+        return self.payload
 
 
 class FailingBackend:
@@ -199,6 +214,20 @@ class TestPipeline(unittest.TestCase):
                                          ROLES, False, 5, Path(tmp))
             self.assertEqual(result["status"], "step_failed")
             self.assertIn("Backend nicht erreichbar", result["steps"][0]["reason"])
+
+        # ErrorResponse (HTTP 200, status=error) darf nicht als leere Antwort
+        # oder gar als Erfolg durchgehen.
+        with mock.patch.object(muscal.urllib.request, "urlopen",
+                               return_value=FakeHTTPResponse({
+                                   "status": "error", "error": "contract",
+                                   "details": "Fake-Fehler"})):
+            with tempfile.TemporaryDirectory() as tmp:
+                result = muscal.run_pipeline(
+                    "Aufgabe", ["router"],
+                    muscal.LiveBackend("http://fake.invalid", timeout=5),
+                    ROLES, False, 5, Path(tmp))
+                self.assertEqual(result["status"], "step_failed")
+                self.assertIn("Backend-Fehler", result["steps"][0]["reason"])
 
     def test_build_message_contains_previous_steps(self):
         message = muscal.build_message(ROLES["planner"], "Aufgabe", [

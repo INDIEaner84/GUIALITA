@@ -123,6 +123,7 @@ python3 scripts/build_golden.py --check        → OK
 python3 scripts/build_roles.py --check         → OK
 python3 scripts/roles.py validate --check-mirror → OK
 python3 scripts/check_docs.py                  → OK
+python3 scripts/contract_check.py              → OK (Live-Clients gegen echtes Schema, Fake-Backend)
 ```
 
 `NOT EXECUTED` bleibt `NOT EXECUTED`: die acht Suiten mit Backend-, Modell-,

@@ -266,6 +266,14 @@ class TestGeneratedSuites(unittest.TestCase):
         self.assertEqual(payload["model"], "granite-8b")
         self.assertIn("Nur ein Label.", payload["message"])
 
+        # Eine 200-Antwort mit status=error ist keine leere Modellantwort.
+        with mock.patch.object(evalmod.urllib.request, "urlopen",
+                               return_value=FakeResponse({
+                                   "status": "error", "error": "unknown_model",
+                                   "details": "Fake-Fehler"})):
+            with self.assertRaises(RuntimeError):
+                backend.ask(task_data)
+
 
 
 if __name__ == "__main__":
