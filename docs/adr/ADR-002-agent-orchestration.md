@@ -52,7 +52,7 @@ Zwei Nebenbefunde, die für die Reihenfolge entscheidend sind:
 Zum Entwurfszeitpunkt sagte `testing.ci_note` „Sieben von neun", `known_risks`
 „8 von 9"; die Tabelle in `docs/BASELINES/REGRESSION_CONTRACT.md` belegte
 **8 von 9**. Nach P1 waren es 8 von 13, nach den P3–P6-Suiten **8 von 19**.
-Die verbindlichen Zahlen stehen heute in der SSOT: **307 Testfunktionen in 19
+Die verbindlichen Zahlen stehen heute in der SSOT: **311 Testfunktionen in 19
 Suiten**. Abschnitt 5a führt die Korrektur aus.
 
 **b) Der Benchmark misst nicht, was die Frage unterstellt.**
@@ -107,7 +107,7 @@ ausdrücklich nicht** als Mittel der Rollenidentität eingesetzt.
    Beispiele pro Rolle. Im Repo existieren **null** Trainings-Traces.
 3. **Wartung.** Jedes Basis-Modell-Upgrade invalidiert alle Adapter. Ein
    Projekt, für das zum Entwurfszeitpunkt 141 angebliche Tests in neun Suiten
-   galten und das heute **307 Testfunktionen in 19 Suiten** hat, sollte sich
+   galten und das heute **311 Testfunktionen in 19 Suiten** hat, sollte sich
    keine zweite Veraltungsachse bauen.
 4. **Hardware.** GTX 1080 Ti (Pascal) hat keine brauchbaren Tensor Cores und
    kein schnelles bf16. QLoRA auf 3B ist möglich, aber langsam — und belegt
@@ -354,7 +354,7 @@ freigegeben wären. `current.hard_stop`, `next_authorized_phase: NONE` und
   (26) und `tests/test_muscal_http.py` (14).
 - **Konsistenz nachgezogen (2026-11-13).** `scripts/check_docs.py` prüft die
   aktuellen Zahlen, Grenzen und generierten Artefakte;
-  `tests/test_doc_consistency.py` (5). Runner und SSOT melden **307
+  `tests/test_doc_consistency.py` (5). Runner und SSOT melden **311
   Testfunktionen in 19 Suiten**.
 
 - **Live-Contract geprüft (2026-11-13).** `scripts/contract_check.py` startet
@@ -430,7 +430,7 @@ Diese ADR wird neu bewertet, wenn:
 ## 9. Belege
 
 - `docs/GUIALITA_STATE.yaml` — `future_target` (PLANNED), `prohibitions`,
-  `testing` (307 Testfunktionen / 19 Suiten / `ci_capable: false`),
+  `testing` (311 Testfunktionen / 19 Suiten / `ci_capable: partial`),
   `known_risks`, `capabilities_absent`
 - `docs/BASELINES/REGRESSION_CONTRACT.md` — Voraussetzungstabelle der Suiten
   (Auflösung des 7-vs-8-Widerspruchs)

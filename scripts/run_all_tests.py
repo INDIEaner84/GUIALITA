@@ -121,12 +121,25 @@ CAPABILITY_LABEL = {
     "deps":    "Python-Abhängigkeiten importierbar (pydantic, fastapi)",
     "backend": "Backend erreichbar (http://localhost:8080)",
     "llm":     "LLM-Runtime geladen (llama-cpp-python + Modell)",
+    "mock":    "Mock-LLM aktiv (GUIALITA_MOCK_LLM=1) — Test-Adapter, kein Modell/GPU",
     "tts":     "TTS-Runtime (llama-liquid-audio-cli + LFM-Audio-Modell)",
     "stt":     "STT-Runtime (whisper.cpp + Modell)",
     "mikrofon": "Mikrofon / PortAudio",
     "espeak":  "espeak-ng (erzeugt synthetische Testsprache)",
     "lfm-audio-runtime": "LFM-Audio-Runtime für Batch-Verarbeitung",
 }
+
+# Welche Voraussetzung durch den Mock-Adapter als erfüllt gilt.
+# Bewusst eng: nur "llm" (Chat-Pfad). STT/TTS/Mikrofon bleiben echte
+# Hardware-/Runtime-Voraussetzungen — der Mock täuscht sie nicht vor.
+MOCK_SATISFIES = {"llm"}
+
+
+def satisfied(prereq: str, capabilities: dict) -> bool:
+    """Erfüllt diese Maschine die Voraussetzung (echt oder per Mock)?"""
+    if capabilities.get(prereq, False):
+        return True
+    return prereq in MOCK_SATISFIES and capabilities.get("mock", False)
 
 
 def probe_capabilities(base_url="http://localhost:8080"):
@@ -156,6 +169,11 @@ def probe_capabilities(base_url="http://localhost:8080"):
         caps["backend"] = True
         caps["llm"] = (health.get("primary_runtime", {}).get("status") == "online"
                        and any(m.get("available") for m in health.get("models", [])))
+        caps["mock"] = bool(health.get("mock_runtime", {}).get("enabled", False))
+    else:
+        # Backend läuft nicht: der Mock-Modus kann trotzdem lokal gesetzt sein.
+        caps["mock"] = os.environ.get("GUIALITA_MOCK_LLM", "").strip().lower() in (
+            "1", "true", "yes", "on")
     audio = get("/audio/status")
     if audio:
         caps["stt"] = audio.get("status") == "online"
@@ -408,12 +426,27 @@ def main():
     results = {}
     for filename, label, prereq, timeout in suites:
         print(f"  {filename:<32} … ", end="", flush=True)
-        missing = [c for c in prereq if not capabilities.get(c, False)]
+        missing = [c for c in prereq if not satisfied(c, capabilities)]
         r = run_suite(filename, timeout, missing)
-        results[filename] = {**r, "label": label, "requires": prereq}
+        # Kennzeichnung, wenn die Suite nur dank Mock-Adapter laufen konnte.
+        # Das ist kein Ersatz für die echte Runtime und wird nicht als
+        # voller Nachweis gewertet (siehe Hinweis im Ergebnisblock).
+        # Bedingung bewusst eng: Mock muss tatsächlich aktiv sein UND die
+        # Suite muss gewertet laufen (NOT_EXECUTED zählt nicht) UND die echte
+        # Voraussetzung muss fehlen.
+        via_mock = (capabilities.get("mock", False)
+                    and r["status"] in (PASS, FAIL)
+                    and any(c in MOCK_SATISFIES and not capabilities.get(c, False)
+                            for c in prereq))
+        results[filename] = {**r, "label": label, "requires": prereq,
+                             "via_mock_adapter": via_mock}
         mark = {PASS: "PASS", FAIL: "FAIL", NOT_EXECUTED: "NOT EXECUTED"}[r["status"]]
+        if r["status"] == PASS and via_mock:
+            mark = "PASS (mock)"
         detail = f"{r['passed']}/{r['ran']}" if r["ran"] else "—"
-        print(f"{mark:<13}{detail:>8}  {r['wall_seconds']:>6.1f}s"
+        if r.get("skipped"):
+            detail += f" ({r['skipped']} skip)"
+        print(f"{mark:<13}{detail:>12}  {r['wall_seconds']:>6.1f}s"
               + (f"   {r['reason']}" if r.get("reason") else ""))
         for line in r.get("failed_tests", []):
             print(f"      {line}")
@@ -423,6 +456,8 @@ def main():
     passed = sum(r["passed"] for r in graded)
     ran = sum(r["ran"] for r in graded)
     failures = sum(r["failures"] + r["errors"] for r in graded)
+    skipped_graded = sum(r["skipped"] for r in graded)
+    mock_suites = [f for f, r in results.items() if r.get("via_mock_adapter")]
     ungraded_ran = sum(r["ran"] for r in ungraded)
     ungraded_passed = sum(r["passed"] for r in ungraded)
     by_status = {s: [f for f, r in results.items() if r["status"] == s]
@@ -441,6 +476,14 @@ def main():
     print(f"  bewertbar ausgeführt          : {ran}   (Suiten PASS/FAIL)")
     print(f"    davon bestanden             : {passed}")
     print(f"    davon fehlgeschlagen        : {failures}")
+    print(f"    davon übersprungen (skip)   : {skipped_graded}"
+          "   ← Voraussetzung fehlt, KEIN Fehler")
+    if mock_suites:
+        print()
+        print(f"  über Mock-Adapter gelaufen    : {', '.join(mock_suites)}")
+        print("    → GUIALITA_MOCK_LLM=1: Chat-/Memory-/API-Pfad sind geprüft,")
+        print("      die ECHTE LLM-Runtime ist damit aber NICHT nachgewiesen.")
+        print("      Runtime-Tests (Modell, STT, TTS) bleiben übersprungen.")
     if ungraded:
         print(f"  in NOT-EXECUTED-Suiten        : {ungraded_ran} gestartet, "
               f"{ungraded_passed} davon bestanden")
@@ -457,6 +500,11 @@ def main():
             "tests_executed_graded": ran,
             "tests_passed_graded": passed,
             "tests_failed_graded": failures,
+            "tests_skipped_graded": skipped_graded,
+            "suites_via_mock_adapter": mock_suites,
+            "mock_adapter_note": ("Mock-LLM ersetzt keine echte Runtime: "
+                                  "Chat-/Memory-/API-Pfad geprüft, LLM/STT/TTS "
+                                  "bleiben unbestätigt"),
             "tests_started_in_not_executed_suites": ungraded_ran,
             "not_counted_note": "Tests aus NOT_EXECUTED-Suiten zaehlen nicht als PASS",
             "suites_pass": len(by_status[PASS]),

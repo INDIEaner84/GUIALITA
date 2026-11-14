@@ -5,8 +5,8 @@ name: State Consistency
 # docs/GUIALITA_STATE.yaml ist die einzige Statusquelle des Projekts. Sie war
 # mehrfach zahlenmäßig falsch (Testzahlen 108/79/71/145/141). Diese Prüfungen
 # laufen ohne Backend, ohne GPU und ohne Modelle: sieben Suiten bestehen nur
-# aus Standardbibliothek und können in CI belastbar grün werden. Acht weitere
-# Suiten bleiben bewusst NOT_EXECUTED, nicht PASS.
+# aus Standardbibliothek und können in CI belastbar grün werden. Zwölf weitere
+# Suiten bleiben in der nackten Sandbox bewusst NOT_EXECUTED, nicht PASS.
 #
 # Geprüft wird:
 #   1. Inventar des Testrunners gegen `suite_inventory` in der SSOT.

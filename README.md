@@ -12,12 +12,24 @@
 
 ## Schnellstart
 
+Ein Kommando richtet ein, startet und testet alles lokal:
+
+```bash
+bash scripts/local_update.sh            # mit echten Modellen
+bash scripts/local_update.sh --mock     # ohne Modelle/GPU (Test-Adapter)
+```
+
+Manuell, Schritt für Schritt:
+
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
+bash scripts/setup_local.sh             # findet Modelle/Runtime → schreibt .env
 .venv/bin/python scripts/doctor.py
 GUIALITA_VENV="$PWD/.venv" bash scripts/start.sh
 ```
+
+Anweisungen für Coding-Agenten (OpenCode u. a.) stehen in [`AGENTS.md`](AGENTS.md).
 
 Die Modellpfade in `config/models.yaml` müssen zur lokalen Installation passen.
 Absolute Pfade können durch Umgebungsvariablen ersetzt werden, zum Beispiel:
@@ -180,15 +192,42 @@ Listet alle konfigurierten Modelle mit Verfügbarkeit.
 
 Der kanonische Lauf führt jede Suite genau einmal aus und stuft fehlende
 Voraussetzungen als `NOT_EXECUTED` ein — nie als `PASS`. Verbindlich sind
-**307 Testfunktionen in 19 Suiten**; sieben Suiten laufen ohne Backend, GPU,
-Modelle und ohne installierte Drittpakete.
+**311 Testfunktionen in 19 Suiten**; sieben Suiten laufen ohne Backend, GPU,
+Modelle und ohne installierte Drittpakete. Der Zähler arbeitet per AST, nicht
+per Regex.
 
 ```bash
 python3 scripts/run_all_tests.py                    # alles, was hier laufen kann
 python3 scripts/run_all_tests.py --list             # Inventar ohne Ausführung
+python3 scripts/run_all_tests.py --only api         # einzelne Suiten
 python3 scripts/run_all_tests.py --check-state     # Runner ↔ SSOT
 python3 scripts/check_docs.py                     # Zahlen in den aktuellen Dokumenten
 ```
+
+Für die Runtime-Suiten muss das Backend laufen (`bash scripts/start.sh`).
+Der Runner prüft jede Voraussetzung vorab und klassifiziert ehrlich:
+
+| Klassifizierung | Bedeutung |
+|---|---|
+| `PASS` | gelaufen, alle ausgeführten Tests bestanden |
+| `PASS (mock)` | gelaufen dank Test-Adapter — echte LLM-Runtime **nicht** nachgewiesen |
+| `FAIL` | echter Fehler — muss repariert werden |
+| `NOT_EXECUTED` | Voraussetzung fehlt (Modell, Runtime, Mikrofon); zählt **nicht** als bestanden |
+
+### Testen ohne Modelle (`--mock`)
+
+Auf einem frischen Klon, in CI oder ohne GPU läuft der Chat-Pfad über den
+deterministischen Test-Adapter (`backend/adapters/mock_adapter.py`):
+
+```bash
+GUIALITA_MOCK_LLM=1 bash scripts/start.sh
+python3 scripts/run_all_tests.py
+```
+
+Das beweist API-Vertrag, Sessions, Memory/Retrieval, Graph, Audit und Export.
+Es beweist **keine** Inferenz, keine GPU, kein STT und kein TTS — diese Tests
+bleiben mit Begründung übersprungen. `ready_for_voice_turn` bleibt `false`.
+Ein-Kommando-Update und Verifikation: `bash scripts/local_update.sh [--mock]`.
 
 ADR-002-Werkzeuge (CLI/HTTP, ohne PyYAML prüfbar):
 

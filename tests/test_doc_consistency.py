@@ -29,7 +29,7 @@ class TestDocConsistency(unittest.TestCase):
                          "PROTOTYPEN/README.md",
                          ".github/workflows/state-consistency.yml"):
             self.assertIn(relative, check_docs.CURRENT_FILES)
-            self.assertIn(relative, check_docs.required_phrases(307, 19, root))
+            self.assertIn(relative, check_docs.required_phrases(311, 19, root))
         self.assertEqual(len(check_docs.CURRENT_FILES), 13)
 
     def test_forbidden_current_phrase_is_detected(self):
@@ -46,8 +46,8 @@ class TestDocConsistency(unittest.TestCase):
             root = Path(tmp)
             (root / "docs").mkdir()
             (root / "docs" / "GUIALITA_STATE.yaml").write_text(
-                "  test_functions_total: 307\n  suites: 19\n", encoding="utf-8")
-            for relative in check_docs.required_phrases(307, 19, root):
+                "  test_functions_total: 311\n  suites: 19\n", encoding="utf-8")
+            for relative in check_docs.required_phrases(311, 19, root):
                 if relative == "docs/GUIALITA_STATE.yaml":
                     continue  # Zahlen müssen lesbar bleiben, Rest fehlt
                 path = root / relative
@@ -62,11 +62,11 @@ class TestDocConsistency(unittest.TestCase):
     def test_required_phrases_pass_when_present(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            phrases = check_docs.required_phrases(307, 19, root)
+            phrases = check_docs.required_phrases(311, 19, root)
             for relative, needles in phrases.items():
                 path = root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
-                prefix = "  test_functions_total: 307\n  suites: 19\n" \
+                prefix = "  test_functions_total: 311\n  suites: 19\n" \
                     if relative == "docs/GUIALITA_STATE.yaml" else ""
                 path.write_text(prefix + "\n".join(needles), encoding="utf-8")
             self.assertEqual(check_docs.check_required_phrases(root), [])

@@ -92,7 +92,7 @@ Konfigurierbare Variablen: `GUIALITA_ROOT`, `GUIALITA_MODEL_ROOT`,
 ## 4. Tests
 
 Die Suiten sind eigenständige `unittest`-Skripte, kein pytest.
-**307 Testfunktionen in 19 Suiten**; 8 davon brauchen Backend, Modelle, GPU,
+**311 Testfunktionen in 19 Suiten**; 8 davon brauchen Backend, Modelle, GPU,
 Mikrofon oder espeak-ng und sind daher nicht CI-fähig. Elf Suiten laufen ohne
 Server, sieben davon sogar ohne installierte Pakete.
 

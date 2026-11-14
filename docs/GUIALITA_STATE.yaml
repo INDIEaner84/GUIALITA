@@ -8,14 +8,13 @@
 # Belege bzw. Erläuterungen. Wenn sie dieser Datei widersprechen, gilt diese
 # Datei. Phase-Reports werden nach ihrer Erstellung NICHT mehr geändert.
 #
-# Aktualisiert: 2026-11-13 (P3–P6: **307 Testfunktionen in 19 Suiten**.
-#               Eval-Golden-Sets, Rollen-Mirror, VRAM-Budget, Lifecycle,
-#               MUSCAL CLI/HTTP und Dokumentenprüfung als Selbsttests
-#               umgesetzt. Nachweis: --check-state, check_docs.py, CI.)
-#               Davor am selben Tag: P1/P2 korrigierten 141 -> 177
-#               Testfunktionen und 9 -> 13 Suiten. P0 und jede Live-
-#               Hardwaremessung bleiben offen.
-#               Davor: 2026-08-22 (Merge arena/01a01e70 — Portabilität,
+# Aktualisiert: 2026-11-13 (Integration von origin/main@7caea0e: Mock-Test-
+#               Adapter, scripts/local_update.sh, AGENTS.md und Diagnose-
+#               Korrekturen übernommen; **311 Testfunktionen in 19 Suiten**
+#               als gemeinsame Baseline. Davor: ADR-002 P3–P6 als CLI/HTTP-
+#               Werkzeuge mit 307/19; P1/P2 korrigierten 141 -> 177 und
+#               9 -> 13. P0 und jede Live-Hardwaremessung bleiben offen.
+#               Davor: 2026-08-22 Merge arena/01a01e70 — Portabilität,
 #               Diagnose, Test-Härtung; kombiniert mit M5 Audit/Export)
 
 meta:
@@ -255,7 +254,9 @@ reproducibility:
 testing:
   status: DOCUMENTED
   runner: scripts/run_all_tests.py
-  test_functions_total: 307
+  update_and_verify_entry: "bash scripts/local_update.sh [--mock]"
+  agent_instructions: AGENTS.md
+  test_functions_total: 311
   suites: 19
   counting_method: >-
     AST — gezählt wird jede Funktion, deren Name mit "test" beginnt,
@@ -270,7 +271,7 @@ testing:
     TestCase-Klassen. Modulweite Tests fehlten komplett.
   correction_2026_11_13:
     detection: "scripts/run_all_tests.py --check-state"
-    effect: "141 -> 177 -> 307 Testfunktionen, 9 -> 13 -> 19 Suiten"
+    effect: "141 -> 177 -> 307 -> 311 Testfunktionen, 9 -> 13 -> 19 Suiten (letzter Schritt: Integration von origin/main@7caea0e, test_api.py 23 -> 27)"
     causes:
       - "Zähler-Regex erfasste nur eingerückte Methoden: test_process_audio.py meldete 5 statt 14, test_capture.py 0 statt 6"
       - "test_audit.py, test_chat_service.py und test_audio_contract.py existierten und waren hier dokumentiert, standen aber nicht in der Runner-Liste — sie liefen nie über den kanonischen Lauf"
@@ -280,7 +281,7 @@ testing:
       - "--check-state gleicht Runner und dieser Datei automatisch ab"
   extension_2026_11_13:
     scope: "ADR-002 P3–P6 als prüfbare CLI/HTTP-Werkzeuge, keine produktive Orchestrierungsschicht"
-    canonical_total: "**307 Testfunktionen in 19 Suiten**"
+    canonical_total: "**311 Testfunktionen in 19 Suiten**"
     added_suites:
       - "test_eval.py: 33 — Grader, Golden Set, p50/p95, Reportvergleich"
       - "test_modelsctl.py: 25 — dreivertiges VRAM-Urteil, Plan, start/stop-Delegation"
@@ -307,13 +308,22 @@ testing:
       - "scripts/eval.py --live und --compare brauchen ein laufendes Backend"
       - "scripts/modelsctl.py switch/start/stop messen erst mit echter Runtime"
       - "MUSCAL --live und HTTP ohne dry_run sind ohne Modell nicht bewertbar"
+  integration_2026_11_13:
+    source: "origin/main@7caea0e (Merge PR #4), freigegeben"
+    merged: "Mock-Test-Adapter, scripts/local_update.sh, AGENTS.md, Diagnose-/Audit-Korrekturen, Reproduzierbarkeitsregel"
+    preserved: "AST-Zählung, 19 Suiten, --check-state, ADR-002-Werkzeuge, contract_check.py, 13 geprüfte Dokumente"
+    runner_combination: "scripts/run_all_tests.py trägt 19 Suiten sowie satisfied()/MOCK_SATISFIES; kein Textkonflikt, nachgeprüft"
+    effect: "test_api.py 23 -> 27; test_functions_total 307 -> 311 bei unverändert 19 Suiten"
+    ci_capable_note: "partial — sieben Suiten in CI, zwölf in der nackten Sandbox NOT_EXECUTED"
+    invariants_unchanged: "hard_stop: true, next_authorized_phase: NONE, 7 prohibitions, future_target: PLANNED"
+    no_runtime_acceptance: "keine Inferenz, kein VRAM, keine GPU-, Latenz-, Modell- oder Audio-Abnahme"
   nested_suite_calls: "standardmäßig deaktiviert (GUIALITA_TEST_NESTED=1 reaktiviert)"
   grading_rule: >
     Tests aus einer NOT_EXECUTED-Suite zählen nicht als bestanden, auch wenn
     einzelne durchliefen. Der Runner weist sie getrennt aus.
   suite_inventory:
     test_voice_activation.py: {tests: 37, requires: deps}
-    test_api.py: {tests: 23, requires: "backend, llm"}
+    test_api.py: {tests: 27, requires: "backend, llm (echt oder mock)"}
     test_memory_retrieval.py: {tests: 17, requires: "backend, llm"}
     test_memory.py: {tests: 16, requires: "backend, llm"}
     test_tts.py: {tests: 16, requires: "backend, tts-runtime"}
@@ -349,18 +359,71 @@ testing:
     NOT_EXECUTED mit benannter Ursache geführt statt als FAIL. Die
     Fähigkeit "deps" wurde ergänzt, weil In-process-Suiten ohne installierte
     Pakete sonst als FAIL (ImportError) statt als NOT_EXECUTED erschienen.
-  ci_capable: false
+    "mock" wird nur zusätzlich geprüft und ersetzt ausschließlich "llm".
+  ci_capable: partial
   ci_note: >
-    Acht von neunzehn Suiten benötigen mehr als die Python-Abhängigkeiten:
-    ein laufendes Backend, Modelle, GPU, Mikrofon oder espeak-ng. Ohne Server
-    und ohne Modell laufen elf Suiten — sieben davon sogar ohne installierte
-    Pakete (test_benchmark.py sowie die sechs ADR-002-Suiten), die übrigen vier
-    (test_voice_activation.py, test_audit.py, test_chat_service.py,
-    test_audio_contract.py) nach Installation der Abhängigkeiten. In einer
-    nackten Sandbox ohne pydantic/fastapi erscheinen zusätzlich diese vier als
-    NOT_EXECUTED; der vollständige Lauf meldet dort 7 PASS, 12 NOT EXECUTED,
-    0 FAIL. Die frühere Formulierung "nur test_voice_activation.py läuft ohne
-    Voraussetzungen" war in beide Richtungen falsch.
+    Von 19 Suiten laufen sieben ohne Backend, GPU, Modelle und ohne
+    Drittpakete (test_benchmark.py sowie die sechs ADR-002-Suiten); genau
+    diese führt .github/workflows/state-consistency.yml aus. Acht Suiten
+    benötigen ein Backend, Modelle, Mikrofon oder espeak-ng, vier weitere
+    nur die Python-Abhängigkeiten. Ohne installierte pydantic/fastapi
+    erscheinen auch diese vier als NOT_EXECUTED; der vollständige Lauf meldet
+    in der nackten Sandbox 7 PASS, 12 NOT EXECUTED, 0 FAIL. Mit
+    GUIALITA_MOCK_LLM=1 können zusätzlich Chat-, Memory- und API-Pfade als
+    PASS (mock) laufen; das ersetzt keine Runtime-Abnahme. Die frühere
+    Formulierung "nur test_voice_activation.py läuft ohne Voraussetzungen"
+    war in beide Richtungen falsch.
+  mock_adapter:
+    status: PASS
+    date: 2026-11-13
+    module: backend/adapters/mock_adapter.py
+    activation: "GUIALITA_MOCK_LLM=1 (oder Modell mock-1b, adapter: mock)"
+    marker: "MOCK-LLM-OK"
+    classification: "Testinfrastruktur — KEINE Runtime, KEIN Runtime-Ersatz, keine Produktfähigkeit"
+    proves:
+      - "API-Vertrag und Fehlersemantik (400/404/415/500)"
+      - "Session- und Message-Persistenz über ChatService"
+      - "Memory-Indexierung, Retrieval und Graph"
+      - "Audit schreibt nur Metadaten (keine Inhalte)"
+      - "Session-Export (JSON/Markdown)"
+    does_not_prove:
+      - "echte LLM-Inferenz, Antwortqualität oder Modell-Latenz"
+      - "llama-cpp-python, CUDA/GPU"
+      - "STT (whisper.cpp), TTS (LFM-Audio), Mikrofon"
+    guard: >
+      Im Mock-Modus bleibt capabilities.llm=false und ready_for_voice_turn=false;
+      zusätzlich wird capabilities.llm_mock=true gemeldet. Der Runner kennzeichnet
+      solche Läufe als "PASS (mock)" und weist sie getrennt aus.
+    runtime_tests_unaffected: >
+      Runtime-abhängige Tests (echtes Modell, STT, TTS, Voice-Turn) springen mit
+      Begründung als skip; auf einer Maschine mit vorhandener Runtime laufen sie
+      unverändert. Kein Test wurde gelöscht oder abgeschwächt.
+  reproducibility:
+    status: DOCUMENTED
+    date: 2026-11-13
+    entry_point: "bash scripts/local_update.sh [--mock]"
+    non_persisted_paths:
+      - ".venv/"
+      - "data/ (SQLite + audit.jsonl)"
+      - "scripts/logs/"
+      - "__pycache__/, .pytest_cache/"
+    rule: >
+      Diese Pfade sind gitignored und damit in Agent-/CI-Umgebungen zwischen
+      Läufen nicht garantiert vorhanden. Nach jedem Umgebungswechsel ist die
+      Verifikation NEU auszuführen; ein älterer Testbericht gilt nicht als
+      Nachweis für den aktuellen Stand (siehe SINGLE_SOURCE_OF_TRUTH.md:
+      "historische Testergebnisse ohne aktuellen Lauf" sind keine Statusquelle).
+    recovery_note: >
+      Beobachtet am 2026-11-13: Der lokale Branch-Zeiger stand wieder auf der
+      Basis (4b3762b), während der Arbeitsbaum die Änderungen enthielt und der
+      Commit bereits auf dem Remote lag (5e68392). Wiederherstellung verlustfrei
+      über fetch, byte-weisen Vergleich von Arbeitsbaum und Remote-Commit und
+      anschließendes 'git reset --mixed' auf den gefetchten Stand. Arbeitsbaum
+      und .git wurden dabei nicht überschrieben.
+    recovery_rule: >
+      Vor jedem reset/checkout erst prüfen, ob Arbeitsbaum und Ziel-Commit
+      inhaltlich identisch sind (git diff bzw. Vergleich der Blobs). Niemals
+      'git reset --hard' oder 'git push --force' zur Reparatur nutzen.
 
 # ------------------------------------------------------------
 # Verifizierte Umgebung (Referenzmaschine)
@@ -428,7 +491,7 @@ freeze_policy:
   rationale: >
     Freeze v1 fror nicht Verhalten ein, sondern Verbesserung. Er entstand, als
     es keine verlässliche Testgrundlage gab — Einfrieren ersetzte das Prüfen.
-    Mit scripts/run_all_tests.py (307 Tests, 19 Suiten, jede genau einmal) ist
+    Mit scripts/run_all_tests.py (311 Tests, 19 Suiten, jede genau einmal) ist
     Prüfen möglich. Damit tritt an die Stelle einer Erlaubnis-Zeremonie ein
     Nachweis. Zusätzlich fror v1 Code ein, dessen Qualität nie geprüft war
     (Feature-Hashing als "semantisches" Retrieval, 53 fest eingetragene

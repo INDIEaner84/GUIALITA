@@ -7,10 +7,14 @@ Zuletzt fortgeschrieben: 2026-11-13.
 
 ## Aktueller Stand — 2026-11-13 (Kurzfassung)
 
-- **307 Testfunktionen in 19 Suiten**; `run_all_tests.py --check-state`
-  meldet keine Abweichung.
-- Vollständiger Sandbox-Lauf: **7 PASS, 12 NOT EXECUTED, 0 FAIL**. Kein Test
-  aus einer `NOT_EXECUTED`-Suite wurde als bestanden gezählt.
+- **311 Testfunktionen in 19 Suiten**; `run_all_tests.py --check-state`
+  meldet keine Abweichung. `origin/main@7caea0e` ist integriert: Mock-Test-
+  Adapter, `scripts/local_update.sh` und `AGENTS.md` sind übernommen, ohne die
+  AST-Zählung oder eine der 19 Suiten zu verlieren.
+- Vollständiger Sandbox-Lauf ohne Mock: **7 PASS, 12 NOT EXECUTED, 0 FAIL**.
+  Kein Test aus einer `NOT_EXECUTED`-Suite wurde als bestanden gezählt.
+  Mit `GUIALITA_MOCK_LLM=1` werden zusätzliche Chat-, Memory- und API-Pfade
+  als `PASS (mock)` ausgewiesen — das ist keine Runtime-Abnahme.
 - ADR-002 P3–P6: Eval-Harness, VRAM-Budget/Lifecycle, Rollen-Registry und
   MUSCAL CLI/HTTP sind als Selbsttests im Trockenlauf geprüft.
   `scripts/contract_check.py` belegt zusätzlich die Live-Clients gegen das
@@ -20,14 +24,13 @@ Zuletzt fortgeschrieben: 2026-11-13.
   `next_authorized_phase: NONE` und `prohibitions` sind unverändert.
 - MUSCAL bleibt CLI/HTTP, kein Desktop-Adapter, keine parallelen Agenten.
 - Extern geprüft: `gh run view 43621040654` → `success`, 16/16 Schritte des
-  Workflows `State Consistency` grün (10 Prüfschritte); der Folgelauf
-  `43622338506` auf `005755b` sowie `43622915315` auf `56e3597` ebenfalls
-  grün. Alle bislang geprüften Push-Läufe auf diesem Branch erfolgreich.
-  Kein PR eröffnet (nicht freigegeben).
-- `origin/main` ist auf `7caea0e` weitergezogen und nennt 145 Testfunktionen in
-  9 Suiten. Der trockene Merge-Test meldet 4 Konfliktdateien; Details und
-  Fahrplan in `docs/INTEGRATION_STATUS.md`. Dieser Branch bleibt bei
-  **307 Testfunktionen in 19 Suiten** und ist in sich konsistent.
+  Workflows `State Consistency` grün (10 Prüfschritte); alle folgenden
+  Push-Läufe auf diesem Branch ebenfalls grün. Details und Verlauf:
+  `docs/INTEGRATION_STATUS.md`.
+- Aus `main` übernommen: `AGENTS.md`, `scripts/local_update.sh`,
+  `backend/adapters/mock_adapter.py`, Diagnose-/Audit-Korrekturen und die
+  Reproduzierbarkeitsregel. Details der `main`-Sessions stehen in `docs/SESSION_LOG.md` als
+  historische Belege; maßgeblich bleibt `docs/GUIALITA_STATE.yaml`.
 
 ## Historischer Status — 2026-08-22 (nicht maßgeblich)
 

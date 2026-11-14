@@ -22,6 +22,7 @@ import logging
 import os
 from typing import Optional
 
+from backend.memory.embed import EMBEDDING_VERSION
 from backend.memory.retrieval import (
     ContextBuilder,
     MemoryIndexer,
@@ -44,23 +45,36 @@ class ChatService:
                  max_context_chars: int = None):
         self.manager = manager
         self.store = store
+        self._memory_cfg = self._load_memory_config()
         self.recent_messages = recent_messages or self._load_recent_messages()
         self.max_context_chars = max_context_chars or DEFAULT_MAX_CONTEXT_CHARS
+        # `memory.enabled` aus config/memory.yaml wurde bisher ignoriert:
+        # status() meldete immer enabled=True. Jetzt wird der konfigurierte
+        # Wert berichtet — das Retrieval selbst bleibt defensiv aktiv.
+        self.memory_enabled = bool(self._memory_cfg.get("memory", {}).get("enabled", True))
         self.indexer = MemoryIndexer(store)
         self.retriever = MemoryRetriever(store)
         self.context_builder = ContextBuilder(store)
 
     @staticmethod
-    def _load_recent_messages() -> int:
+    def _load_memory_config() -> dict:
         try:
             import yaml
             cfg_path = os.path.join(BASE_DIR, "config", "memory.yaml")
             if os.path.isfile(cfg_path):
                 with open(cfg_path, "r", encoding="utf-8") as f:
-                    cfg = yaml.safe_load(f) or {}
-                return int(cfg.get("chat", {}).get("recent_messages", DEFAULT_RECENT_MESSAGES))
+                    return yaml.safe_load(f) or {}
         except Exception as e:
-            log.warning("memory.yaml nicht lesbar (%s) - nutze Default %s",
+            log.warning("memory.yaml nicht lesbar (%s) - nutze Defaults", e)
+        return {}
+
+    @classmethod
+    def _load_recent_messages(cls) -> int:
+        try:
+            cfg = cls._load_memory_config()
+            return int(cfg.get("chat", {}).get("recent_messages", DEFAULT_RECENT_MESSAGES))
+        except Exception as e:
+            log.warning("recent_messages nicht lesbar (%s) - nutze Default %s",
                         e, DEFAULT_RECENT_MESSAGES)
         return DEFAULT_RECENT_MESSAGES
 
@@ -138,12 +152,24 @@ class ChatService:
         }
 
     def status(self) -> dict:
-        """Liefert Memory-Status."""
+        """Liefert Memory-Status.
+
+        `embedding_version` ist die Versionierung der Embeddings (1),
+        NICHT deren Dimension (512) — beide Werte werden getrennt gemeldet,
+        damit Frontend und Diagnostics eindeutig sind.
+        """
+        db_ok = False
+        try:
+            self.store.count_memories()
+            db_ok = True
+        except Exception as e:  # pragma: no cover - Defensivpfad
+            log.warning("Memory-DB nicht verfügbar: %s", e)
         return {
-            "enabled": True,
-            "embedding_version": DEFAULT_DIMENSIONS,
+            "enabled": self.memory_enabled,
+            "embedding_version": EMBEDDING_VERSION,
+            "embedding_dimensions": DEFAULT_DIMENSIONS,
             "memory_count": self.store.count_memories(),
-            "database_available": True,
+            "database_available": db_ok,
         }
 
     def search(self, query: str, top_k: int = 4,

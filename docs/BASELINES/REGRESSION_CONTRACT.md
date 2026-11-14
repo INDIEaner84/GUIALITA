@@ -32,7 +32,7 @@ DIAGNOSTICS_REGRESSION = FAIL if GET /diagnostics broken or paths unresolved
 | Suite | Tests | Voraussetzung | Deckt ab |
 |---|---|---|---|
 | `tests/test_voice_activation.py` | 37 | Python-Abhängigkeiten | Voice-Zustandsautomat, STT/Chat/TTS-Anbindung |
-| `tests/test_api.py` | 23 | Backend, LLM | alle HTTP-Endpunkte inkl. /diagnostics |
+| `tests/test_api.py` | 27 | Backend, LLM (echt oder Mock) | alle HTTP-Endpunkte inkl. /diagnostics |
 | `tests/test_memory_retrieval.py` | 17 | Backend, LLM | Embedding + Retrieval |
 | `tests/test_memory.py` | 16 | Backend, LLM | Session + Memory-Store |
 | `tests/test_tts.py` | 16 | Backend, TTS-Runtime | TTS-Erzeugung + Regression |
@@ -50,7 +50,7 @@ DIAGNOSTICS_REGRESSION = FAIL if GET /diagnostics broken or paths unresolved
 | `tests/test_muscal.py` | 26 | keine | Sequenzielle Kette, Guard, STOP, Audit-Log |
 | `tests/test_muscal_http.py` | 14 | keine | HTTP `/health`, `/pipelines`, `/guard`, `POST /run` |
 | `tests/test_doc_consistency.py` | 5 | keine | Aktuelle Zahlen und Grenzen in den Dokumenten |
-| **Summe** | **307** | | **vollständige Regression** |
+| **Summe** | **311** | | **vollständige Regression** |
 
 ### Korrektur der Testzahl (2026-08-21)
 
@@ -109,7 +109,7 @@ Voraussetzung dafür, dass die Zahlen in beiden Dokumenten als belastbar gelten
 Für Eval-Harness, VRAM-Budget/Lifecycle, Rollen-Registry, MUSCAL CLI/HTTP und
 Dokumenten-Konsistenz sind sechs neue Suiten mit **130 Testfunktionen**
 hinzugekommen. Alle sechs laufen ohne Backend, GPU, Modell oder installierte
-Pakete. Maßgeblich sind jetzt **307 Testfunktionen in 19 Suiten** —
+Pakete. Maßgeblich sind jetzt **311 Testfunktionen in 19 Suiten** —
 177 aus dem ersten Lauf + 130 aus dem zweiten.
 
 Gemessen in der Sandbox:

@@ -55,11 +55,14 @@ def main() -> int:
 
     unit_rc = run("UNIT", UNIT)
     if not args.live:
-        print("\nOverall: PASS (unit layer only; use --live for runtime tests)")
+        status = "PASS" if unit_rc == 0 else "BLOCKED/FAIL"
+        print(f"\nOverall: {status} (unit layer only; use --live for runtime tests)")
         return unit_rc
 
     live_rc = run("LIVE", LIVE)
-    return 1 if unit_rc or live_rc else 0
+    rc = 1 if unit_rc or live_rc else 0
+    print(f"\nOverall: {'PASS' if rc == 0 else 'BLOCKED/FAIL'}")
+    return rc
 
 
 if __name__ == "__main__":

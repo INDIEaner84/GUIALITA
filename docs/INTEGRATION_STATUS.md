@@ -1,120 +1,120 @@
-# Integration nach `main` — Stand 2026-11-13
+# Integration von `origin/main` — abgeschlossen am 2026-11-13
 
-Dieses Dokument hält fest, was eine Zusammenführung dieses Branches mit `main`
-tatsächlich kostet. Es ist **kein Phasenstatus**; maßgeblich für den
-Projektzustand bleibt `docs/GUIALITA_STATE.yaml`. Es steht bewusst **nicht** in
-`CURRENT_FILES` von `scripts/check_docs.py`: Es nennt absichtlich zwei
-konkurrierende Zahlenstände nebeneinander und würde die Pflichtphrasenprüfung
-der 13 aktuellen Dokumente verfälschen.
+Dieses Dokument hält fest, wie die Zusammenführung dieses Branches mit `main`
+tatsächlich durchgeführt wurde. Es ist **kein Phasenstatus**; maßgeblich für
+den Projektzustand bleibt `docs/GUIALITA_STATE.yaml`. Es steht bewusst
+**nicht** in `CURRENT_FILES` von `scripts/check_docs.py`: Es nennt absichtlich
+frühere und aktuelle Zahlenstände nebeneinander und würde die
+Pflichtphrasenprüfung der 13 aktuellen Dokumente verfälschen.
 
-## Beteiligte Stände
+**Freigabe:** ausdrücklich für Merge, gemeinsame Neubaseline und PR. Nicht
+enthalten: Änderung von `hard_stop`, `prohibitions`,
+`next_authorized_phase`, Hardware- oder Live-Abnahme.
+
+## Ausgangslage (vor dem Merge)
 
 | | Commit | Testinventar | Besonderheit |
 |---|---|---|---|
 | Merge-Basis | `4b3762b` | 141 / 9 (damals behauptet) | Ausgangspunkt beider Zweige |
-| Dieser Branch | `56e3597` (Code: `9b0e498`) | **307 Testfunktionen in 19 Suiten** | ADR-002 P1–P6, AST-Zählung, 7 Standardbibliothek-Suiten |
+| Dieser Branch | `9b0e498` | **307 Testfunktionen in 19 Suiten** | ADR-002 P1–P6, AST-Zählung, 7 Standardbibliothek-Suiten |
 | `origin/main` | `7caea0e` | **145 Testfunktionen in 9 Suiten** | Mock-Test-Adapter, `local_update.sh`, `AGENTS.md` |
 
-`main` ist seit dem Branching um fünf Commits weitergezogen
-(`5e68392`, `5643df9`, `1bee303`, `4cde07a`, `7caea0e`); dieser Branch um sechs
-(`7b6ca86`, `12afaed`, `03c0522`, `9b0e498`, `005755b`, `56e3597`) zuzüglich
-weiterer rein dokumentarischer Pushes. Seit `9b0e498` wurde kein Werkzeug und
-keine Testzahl geändert. Beide Zweige haben unabhängig
-versucht, dasselbe Testinventar zu konsolidieren — mit **unterschiedlichen
-Ergebnissen**. Das ist der Kern des Konflikts, nicht bloß Text.
-
-## Trocken gemessen
+`main` war seit dem Branching um fünf Commits weitergezogen
+(`5e68392`, `5643df9`, `1bee303`, `4cde07a`, `7caea0e`); dieser Branch um
+mehrere ADR-002-Commits. Beide Zweige hatten unabhängig versucht, dasselbe
+Testinventar zu konsolidieren — mit **unterschiedlichen Ergebnissen**. Das war
+der Kern des Konflikts, nicht bloß Text.
 
 ```text
-git merge-base HEAD origin/main          → 4b3762b
-git merge-tree --write-tree HEAD origin/main → RC 1
+git merge-base HEAD origin/main               → 4b3762b
+git merge-tree --write-tree HEAD origin/main  → RC 1, 4 Konflikte
+  README.md, docs/GUIALITA_STATE.yaml,
+  docs/HEARTBEAT.md, docs/SESSION_LOG.md
+Auto-Merging (beidseitig geändert): .gitignore, scripts/run_all_tests.py
 ```
 
-**4 Konfliktdateien:**
+AST-Nachzählung auf `main`: `tests/test_api.py` hatte **27** statt 23
+Testfunktionen, `tests/test_capture.py` weiterhin 6. Rechnerisch — bei
+Übernahme der `main`-Version von `test_api.py` — ergab sich **311
+Testfunktionen in 19 Suiten**, also weder 307/19 noch 145/9.
 
-1. `README.md`
-2. `docs/GUIALITA_STATE.yaml`
-3. `docs/HEARTBEAT.md`
-4. `docs/SESSION_LOG.md`
+## Durchführung
 
-Automatisch zusammenführbar, aber von beiden Seiten geändert:
-`.gitignore` und `scripts/run_all_tests.py`.
+```text
+git fetch origin main                         → 7caea0e
+git merge --no-commit --no-ff FETCH_HEAD      → 4 Konflikte, wie vorhergesagt
+```
 
-AST-Nachzählung auf `main`: `tests/test_api.py` hat **27** Testfunktionen
-(dieser Branch: 23), `tests/test_capture.py` weiterhin 6. Rechnerisch — bei
-Übernahme der `main`-Version von `test_api.py` — ergäbe ein Merge damit
-**311 Testfunktionen in 19 Suiten**, nicht 307 und nicht 145; das ist eine
-Hochrechnung, kein gemessener Merge. Hinzu kommt, dass `run_all_tests.py`
-zwar ohne Textkonflikt automatisch zusammengeführt wird, aber auf beiden
-Seiten unterschiedlich umgebaut wurde (hier AST-Zählung/`--check-state`, dort
-Mock-Adapter/`satisfied()`). Ein grünes Auto-Merge ist dort kein
-Funktionsnachweis. Die
-Zahlen in SSOT, Regression Contract, Bootstrap, Heartbeat, Session-Log,
-ADR-002, README und `tests/test_doc_consistency.py` müssten gemeinsam
-nachgezogen werden. Ein halb korrigierter Merge würde `--check-state` sofort
-rot machen.
+Die vier Konflikte wurden **inhaltlich** aufgelöst, nicht durch „ours" oder
+„theirs" überschrieben:
 
-## Extern verifiziert: CI auf GitHub
+- `README.md`: kanonischer Runner-Aufruf mit 311/19 und `--check-state` aus
+  diesem Branch, dazu die Klassifizierungstabelle, den Mock-Abschnitt und
+  `local_update.sh` aus `main`. Die Formulierung „alle 9 Suiten" ist ersetzt.
+- `docs/GUIALITA_STATE.yaml`: `test_functions_total: 311`, `suites: 19`,
+  `test_api.py: 27`, AST-Zählung und `--check-state` behalten; neu
+  `update_and_verify_entry`, `agent_instructions`, `mock_adapter`,
+  `reproducibility` und `integration_2026_11_13` aus `main` bzw. diesem Lauf.
+  `ci_capable` ist jetzt `partial` (vorher `false`, auf `main` `partial`).
+- `docs/HEARTBEAT.md`: eine aktuelle Kurzfassung mit 311/19, beide
+  Session-Reihen als Verweis auf `docs/SESSION_LOG.md`, historischer
+  2026-08-22-Abschnitt erhalten.
+- `docs/SESSION_LOG.md`: beide Session-Reihen chronologisch erhalten. Die
+  Einträge aus `main` haben einen **Historischer-Beleg**-Kopf; die
+  ADR-002-Einträge bleiben; ein neuer Abschnitt dokumentiert die Integration.
 
-Der Workflow `.github/workflows/state-consistency.yml` ist auf GitHub aktiv.
-Alle bis zum Bericht geprüften sechs Push-Läufe auf diesem Branch sind
-`success`:
+`scripts/run_all_tests.py` wurde ohne Textkonflikt automatisch
+zusammengeführt und trägt jetzt **beides**: 19 Suiten mit `deps`,
+AST-Zählung und `--check-state` aus diesem Branch sowie
+`MOCK_SATISFIES`/`satisfied()`/`PASS (mock)` aus `main`. Das wurde bewusst
+nachgeprüft, nicht als „grün = funktionsfähig" hingenommen.
 
-| Run | Commit | Ergebnis |
+## Ergebnis
+
+| | vorher | jetzt |
 |---|---|---|
-| `43408033608` | `7b6ca86` | success |
-| `43425145999` | `12afaed` | success |
-| `43618536071` | `03c0522` | success |
-| `43621040654` | `9b0e498` | success, **16/16 Schritte** (10 Prüfschritte) |
-| `43622338506` | `005755b` | success, **16/16 Schritte** (10 Prüfschritte) |
-| `43622915315` | `56e3597` | success, **16/16 Schritte** (10 Prüfschritte) |
+| `test_api.py` | 23 | **27** |
+| Gesamt | 307 / 19 | **311 Testfunktionen in 19 Suiten** |
+| `ci_capable` | `false` | **`partial`** |
+| Runner | 19 Suiten, AST | 19 Suiten, AST **+** Mock-Klassifizierung |
 
-Die Tabelle ist ein Snapshot: jeder weitere dokumentarische Push erzeugt einen
-weiteren Lauf und ändert den Befund nicht.
+Alle Zahlen in SSOT, Regression Contract, Bootstrap, ADR-002, Heartbeat,
+README und `tests/test_doc_consistency.py` sind auf 311/19 nachgezogen.
+Historische Zahlen (145/9, 307/19, 141/9) wurden nicht umgeschrieben, sondern
+als Zeitpunkt-Belege markiert.
 
-`gh run view 43621040654` zeigt 16 Schritte, alle `success`; darunter die
-zehn eigentlichen Prüfschritte: Inventarabgleich, sieben
-Standardbibliothek-Suiten, Golden Set, Rollen-YAML, Registry, Eval,
-VRAM-Budget, MUSCAL-Trockenlauf, Live-Contract und Dokumenten-Konsistenz.
-Die übrigen sechs sind Setup-, Post- und Abschlussschritte. Der nachfolgende
-Push `005755b` lief in Run `43622338506` mit derselben Schrittfolge erneut
-grün. Das ist ein Nachweis für **diesen Branch**, nicht für `main` und nicht
-für Hardware.
+Unverändert: `current.hard_stop: true`, `next_authorized_phase: NONE`, sieben
+`prohibitions`, `future_target: PLANNED`. Kein Desktop-Adapter, keine
+parallelen Agenten, keine Cloud-Inferenz.
 
-Nebenbefund aus den Run-Annotations: `actions/setup-python@v5` läuft noch auf
+## Verifikation
+
+```text
+python3 scripts/run_all_tests.py --check-state  → Keine Abweichung (311/19)
+python3 scripts/check_docs.py                  → OK über 13 Dokumente
+python3 scripts/contract_check.py              → OK
+python3 scripts/build_golden.py --check        → OK
+python3 scripts/build_roles.py --check         → OK
+python3 scripts/roles.py validate --check-mirror → OK
+python3 scripts/eval.py --dry-run --all-suites → OK
+python3 scripts/run_all_tests.py --only <7>   → 7 PASS, 0 FAIL
+python3 scripts/run_all_tests.py              → 7 PASS, 12 NOT EXECUTED, 0 FAIL
+python3 -m compileall -q backend scripts tests → RC 0
+git diff --check                              → RC 0
+```
+
+Der Workflow `State Consistency` ist auf GitHub `active`; Details und
+Run-IDs stehen in `docs/SESSION_LOG.md`.
+
+## Grenzen
+
+Die Läufe belegen Logik, Inventar, Dokumentenkonsistenz und den HTTP-Vertrag
+dieses Branches. Sie belegen **keine** Inferenz, kein Modell, keine GPU, keine
+VRAM-Belegung, keine echte Latenz, kein STT/TTS und keine Audio-Abnahme.
+`scripts/contract_check.py` bleibt ein Vertragsnachweis mit synthetischen
+Werten; `PASS (mock)` ist keine Runtime-Abnahme. P0 bleibt offen.
+
+Nebenbefund aus den CI-Annotations: `actions/setup-python@v5` läuft noch auf
 Node.js 20 und wird derzeit auf Node.js 24 erzwungen; `ubuntu-latest` soll auf
 Ubuntu 26 wechseln. Die Pins wurden bewusst nicht blind angehoben — das ist
 eine separate Review-Entscheidung, kein Konsistenzfehler.
-
-## Warum hier kein Merge und kein PR ausgeführt wurde
-
-- Ein Merge importiert eine andere, ältere Testrealität (145/9) samt
-  Mock-Adapter in einen Branch, dessen Zahlen gerade extern grün geprüft
-  wurden. Ohne vollständige Neubaseline wäre anschließend keine Zahl mehr
-  belastbar.
-- Ein PR gegen `main` würde GitHub-seitig **„Konflikte"** anzeigen. Das als
-  „fertig" auszugeben wäre genau die Art Erfolgsbehauptung ohne Evidenz, die
-  dieses Projekt teuer bezahlt hat.
-- `current.hard_stop: true`, `next_authorized_phase: NONE` und `prohibitions`
-  bleiben unangetastet. Die Integration ist eine Review-Entscheidung, keine
-  Implementierungsfreigabe.
-
-## Konkreter Fahrplan (bei Freigabe)
-
-1. `git merge --no-commit origin/main` auf diesem Branch; die vier
-   Konfliktdateien manuell zusammenführen.
-2. In `docs/GUIALITA_STATE.yaml` unser AST-Inventar als kanonisch behalten,
-   aber `mock_adapter`, `update_and_verify_entry`, `agent_instructions` und
-   `reproducibility` aus `main` übernehmen; `test_api.py` auf 27, Summe auf
-   **311 / 19** setzen.
-3. `scripts/run_all_tests.py` nach dem Auto-Merge prüfen: `deps`, `satisfied()`
-   und `--check-state` müssen gleichzeitig funktionieren.
-4. `docs/SESSION_LOG.md` und `docs/HEARTBEAT.md` chronologisch
-   zusammenführen, nicht überschreiben; `README.md` beide Abschnitte behalten.
-5. Alle Zahlen in `docs/BASELINES/REGRESSION_CONTRACT.md`,
-   `docs/GUIALITA_SESSION_BOOTSTRAP.md`, `docs/adr/ADR-002-agent-orchestration.md`,
-   `README.md` und `tests/test_doc_consistency.py` auf 311/19 nachziehen.
-6. Erst danach: `--check-state`, `check_docs.py`, `contract_check.py`,
-   vollständiger Runner, YAML/JSON-Validierung — und **dann** PR öffnen.
-
-Bis dahin gilt: dieser Branch ist in sich konsistent, gepusht und extern grün.

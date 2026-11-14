@@ -6,12 +6,15 @@ import yaml
 
 from . import paths
 from .adapters.llamacpp_adapter import LlamaCppAdapter
+from .adapters.mock_adapter import MockAdapter, mock_enabled
 from .adapters.ollama_adapter import OllamaAdapter
 from .adapters.stt_whisper import WhisperSTTAdapter
 
 log = logging.getLogger("guialita.manager")
 
-BASE_DIR = paths.root()
+# Hinweis: paths.root() wird bewusst NICHT auf Modulebene gecacht.
+# GUIALITA_ROOT kann sich nach dem Import ändern (Tests, .env);
+# der Pfad wird daher bei jedem Zugriff frisch aufgelöst.
 
 # Konfigurationsschlüssel, deren Werte als Dateipfade behandelt werden
 # (Platzhalter-Expansion + Absolutmachung beim Laden der Konfiguration).
@@ -26,9 +29,11 @@ DEFAULT_STT_ENGINE = "whisper.cpp"
 
 class ModelManager:
     def __init__(self, config_path: Optional[str] = None):
-        self.config_path = config_path or os.path.join(BASE_DIR, "config", "models.yaml")
+        self.config_path = config_path or os.path.join(paths.root(), "config", "models.yaml")
         self._config = self._load_config()
         self.llamacpp = LlamaCppAdapter()
+        self.mock = MockAdapter()
+        self.mock_enabled = mock_enabled()
         self.ollama = OllamaAdapter(base_url=self._config.get("server", {}).get("ollama_url", "http://127.0.0.1:11434"))
         self.default_model = self._config.get("default_model", "granite-3b")
         stt_cfg = self._config.get("stt", {})
@@ -86,12 +91,24 @@ class ModelManager:
     def list_models(self) -> list:
         result = []
         for mid, cfg in self.get_models().items():
+            adapter = cfg.get("adapter", "llamacpp")
+            # Mock-Modelle brauchen keine Datei — sie sind immer verfügbar.
+            if adapter == "mock":
+                result.append({
+                    "id": mid,
+                    "name": cfg.get("name", mid),
+                    "adapter": adapter,
+                    "path": "",
+                    "available": True,
+                    "size_gb": None,
+                })
+                continue
             path = self._resolve_path(cfg.get("path", ""))
             exists = os.path.exists(path)
             result.append({
                 "id": mid,
                 "name": cfg.get("name", mid),
-                "adapter": cfg.get("adapter", "llamacpp"),
+                "adapter": adapter,
                 "path": path,
                 "available": exists,
                 "size_gb": round(os.path.getsize(path) / 1e9, 2) if exists else None,
@@ -111,6 +128,11 @@ class ModelManager:
                 "gpu": llm_health.get("gpu", False) if llm_ok else False,
             },
             "secondary_runtime": ollama_health,
+            "mock_runtime": {
+                "runtime": "mock",
+                "status": "online" if self.mock_enabled else "disabled",
+                "enabled": self.mock_enabled,
+            },
             "models": self.list_models(),
         }
 
@@ -134,6 +156,7 @@ class ModelManager:
             "environment": paths.describe(),
             "env_file": entry(os.path.join(paths.root(), ".env")),
             "default_model": self.default_model,
+            "mock_llm_enabled": self.mock_enabled,
             "models": models,
             "stt": {
                 "engine": self.stt_engine,
@@ -161,6 +184,14 @@ class ModelManager:
         cfg = self.get_model_cfg(model_id)
         adapter_name = cfg.get("adapter", "llamacpp")
 
+        # Mock-Modus: explizit über GUIALITA_MOCK_LLM=1 oder adapter: mock.
+        # Er ersetzt keine Produktions-Runtime, er macht lokale Tests möglich.
+        if adapter_name == "mock" or self.mock_enabled:
+            result = self.mock.chat(message, cfg, messages=messages, **kwargs)
+            result["model_id"] = cfg["_id"]
+            result.setdefault("runtime", "mock")
+            return result
+
         if adapter_name == "llamacpp":
             if not self.llamacpp.is_available():
                 raise RuntimeError("llama-cpp-python ist nicht installiert")
@@ -181,6 +212,7 @@ class ModelManager:
 
     def close(self) -> None:
         self.llamacpp.close()
+        self.mock.close()
         self.ollama.close()
 
     def stt_health(self) -> dict:
