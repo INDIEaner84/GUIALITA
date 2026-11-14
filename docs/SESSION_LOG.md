@@ -973,6 +973,80 @@ Statusquelle mit **311 Testfunktionen in 19 Suiten**, `ci_capable: partial`,
 `hard_stop: true`, `next_authorized_phase: NONE` und sieben `prohibitions`.
 Keine Inferenz, kein VRAM, keine Hardware- oder Live-Abnahme; P0 bleibt offen.
 
+## Verifikationslauf auf `arena/dfd44a8d-guialita` (nach dem Merge von PR #5)
+
+**Ziel:** den neuen Arbeits-Branch nach dem Merge prüfen, repo-weit auf
+überholte Aktualitätsbehauptungen abgleichen und den Stand ohne Statusänderung
+festhalten. Kein PR, kein Merge, keine Freigabe für Phasenänderungen.
+
+### Stand
+
+```text
+git status -sb                            → clean, Upstream origin/arena/dfd44a8d-guialita
+HEAD / Remote                             → 7085c5ab06231e3e2217753cc76b0dbd3eeda780
+origin/main                               → d899919 (unverändert, Merge-Commit PR #5)
+git log --oneline HEAD..origin/main       → leer (kein Nachholbedarf)
+git merge-base --is-ancestor main HEAD    → RC 0
+gh pr list --state open                   → leer; alle 5 PRs MERGED
+```
+
+Der Branch liegt genau einen Commit (nur Dokumentation) vor `main`.
+
+### Prüfungen auf genau diesem Baum
+
+```text
+python3 scripts/check_docs.py                  → OK über 13 Dokumente (311/19)
+python3 scripts/run_all_tests.py --check-state → Keine Abweichung (311/19)
+python3 scripts/run_all_tests.py --list        → 311 Testfunktionen, 19 Suiten
+python3 tests/test_doc_consistency.py          → 5 Tests OK
+python3 scripts/contract_check.py              → OK
+build_golden.py --check / build_roles.py --check / roles.py validate → OK
+eval.py --dry-run --all-suites / modelsctl.py budget / muscal.py --dry-run → OK
+--only <7 Stdlib-Suiten>                      → 7 PASS, 140/140, 0 FAIL
+vollständiger Runner                          → 7 PASS, 12 NOT EXECUTED, 0 FAIL
+python3 -m compileall -q backend scripts tests → RC 0
+git diff --check                              → RC 0
+PyYAML: SSOT, Rollen, Modelle, Workflow valide; 7 JSON-Dateien valide
+CI: Branch-Push 43645328726 → success; main-Merge 43642883664 → success
+```
+
+### Zusätzlich geprüft, bewusst nicht als Regression gewertet
+
+- `python3 scripts/test.py` → RC 1, `No module named pytest`. Das Skript ist
+  für die in `main` dokumentierte `.venv` gedacht; im System-Python der Sandbox
+  fehlt pytest. Kein Test wurde gelöscht, auskommentiert oder abgeschwächt.
+- `python3 scripts/doctor.py` → RC 0, `Result: PARTIAL`: `fastapi`, `pydantic`,
+  `yaml` und `numpy` fehlen. Read-only-Diagnose, erwartbar ohne Drittpakete.
+- Geplante Läufe `43029686763` (Dependency Audit, 2026-11-11) und
+  `42683894339` (Weekly Repo Audit, 2026-11-09) enden im Schritt
+  „Run OpenCode …" mit `failure` — vorbestehend auf `4b3762b`, gleiche externe
+  Action-Familie wie `Auto PR Review`. Kein Bezug zu diesem Branch.
+
+### Repo-weiter Abgleich
+
+- `check_docs.py` meldet keine verbotene Aktualitätsbehauptung. In aktuellen
+  Dokumenten: 0 Treffer für `ci_capable: false`, `hard_stop: false` oder
+  veraltete Zahlen als Gegenwartsaussage; „P3–P6 offen …" steht nur als
+  verbotenes Prüfmuster in `scripts/check_docs.py`.
+- Verbliebene Angaben 307/19, 145/9 und 141/9 stehen ausschließlich in
+  historisch markierten Tabellen, Evidenzblöcken oder Korrekturabschnitten.
+- SSOT unverändert: 311/19, Inventarsumme 311, `ci_capable: partial`,
+  `hard_stop: true`, `next_authorized_phase: NONE`, 7 `prohibitions`,
+  `future_target: PLANNED`, `meta.updated: 2026-11-13`.
+
+### Entscheidung
+
+Kein PR geöffnet, kein Merge ausgeführt. `AGENTS.md` (Schritt 9, aus `main`
+übernommen) verlangt für PR und Merge eine **explizite** Freigabe; ein bloßes
+„go" ist keine. Die Arbeit endet am Commit auf der Arbeits-Branch.
+`docs/PHASE_*` und `docs/INTEGRITY_MARKER.txt` blieben unangetastet.
+
+### Nicht belegt
+
+Keine Inferenz, kein Modell, keine GPU, kein VRAM, keine echte Latenz,
+kein STT/TTS, keine Audio-Abnahme. `contract_check.py` und `PASS (mock)`
+bleiben Vertragsnachweise. P0 bleibt offen; Live-Abnahme bleibt offen.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.
