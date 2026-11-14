@@ -316,6 +316,106 @@ das ist Umgebung, kein Codefehler.
 - `llama-cpp-python` wurde in dieser Umgebung nicht gebaut; der CUDA-Nachweis
   der Referenzmaschine bleibt unverändert gültig und wurde hier nicht berührt.
 
+## 2026-11-13 — Umgebungs-Wiederherstellung, main-Abgleich und Session-Abschluss
+
+**Auftrag:** aktuelles `main` ziehen, alles Konflikt-frei anpassen, Session
+schließen und archivieren. Autorisierung durch den Nutzer für Commit, Push,
+PR und Merge.
+
+### Befund: verlorene Umgebung, zurückgesetzter Branch-Zeiger
+
+Zwischen den Arbeitsabschnitten waren die gitignored-Pfade `.venv/`, `data/`
+und `scripts/logs/` nicht mehr vorhanden, Port 8080 war frei und `python3`
+hatte kein `fastapi`. Zusätzlich stand der lokale Branch-Zeiger wieder auf der
+Basis `4b3762b`, der Commit `5e68392` war lokal kein gültiges Objekt mehr
+(`fatal: Not a valid object name`), lag aber unverändert auf dem Remote:
+
+```
+git ls-remote origin refs/heads/arena/ba3bbc69-guialita
+5e683923436e0d1006d0f40ca558cabaa35c2d4c
+```
+
+Der Arbeitsbaum enthielt alle 18 Dateien des Updates.
+
+### Wiederherstellung (verlustfrei, ohne `--hard`, ohne force-push)
+
+1. `git fetch origin arena/ba3bbc69-guialita`
+2. Nachweis, dass nichts verloren geht — 15 getrackte Dateien ohne Diff gegen
+   `FETCH_HEAD`, die 3 neuen Dateien byte-identisch gegen die Commit-Blobs:
+   `AGENTS.md`, `scripts/local_update.sh`, `backend/adapters/mock_adapter.py`
+3. erst danach `git reset --mixed FETCH_HEAD` (setzt den Zeiger, fasst den
+   Arbeitsbaum nicht an)
+4. `.venv` neu erstellt und Kernpakete installiert; `llama-cpp-python` bewusst
+   nicht gebaut (in dieser Umgebung nicht nötig und nicht baubar)
+
+Ergebnis: HEAD `5e68392`, Arbeitsbaum sauber, identisch mit Remote.
+Abgeleitet wurde daraus `testing.reproducibility` in `GUIALITA_STATE.yaml`:
+gitignored-Pfade sind in Agent-/CI-Umgebungen nicht garantiert vorhanden, die
+Verifikation ist nach jedem Umgebungswechsel neu auszuführen.
+
+### main-Abgleich — kein Integrationsbedarf
+
+```
+git fetch origin --prune
+git log --oneline HEAD..origin/main      → leer (main hat keine neuen Commits)
+git merge-base --is-ancestor origin/main HEAD → JA
+git merge-base HEAD origin/main          → 4b3762b (= Spitze von origin/main)
+```
+
+`origin/main` steht unverändert auf `4b3762b`, dem Ausgangspunkt dieser Branch.
+Es gab daher nichts zu ziehen und nichts anzupassen; ein Merge ist
+Konflikt-frei (fast-forward möglich). Einziger Remote-Zweig neben `main` ist
+`arena/ba3bbc69-guialita`. Delta: 18 Dateien, 1183 Einfügungen, 43 Löschungen.
+
+### Evidenz — Verifikation nach der Wiederherstellung
+
+```
+GET /health                → 200  api: online · mock: online · latency 1.98 ms
+GET /                      → 200  text/html, 26630 Bytes
+GET /graph                 → 200  text/html, 17856 Bytes
+POST /chat                 → 200  status: success · runtime: mock · Session + Memory indiziert
+GET /diagnostics           → capabilities llm/stt/tts = false, llm_mock = true
+                             ready_for_voice_turn: false
+compileall                 → OK
+scripts/doctor.py          → READY (7 Modelle konfiguriert, mock-1b verfügbar, TTS MISSING)
+scripts/test.py            → UNIT PASS (46)
+scripts/run_all_tests.py   → 6 PASS · 0 FAIL · 3 NOT_EXECUTED · Exit 0
+                             145 Funktionen · 124 bewertbar · 108 bestanden ·
+                             0 fehlgeschlagen · 16 skip
+```
+
+Vorschau-Tauglichkeit geprüft, weil die Ausgabe über einen fremden Host läuft:
+Anfragen mit fremdem `Host:`-Header → `200` (keine Host-Allowlist),
+CORS-Präflight → `200` mit `access-control-allow-origin: *`, Frontend nutzt
+ausschließlich relative `fetch()`-Pfade (0 hardcodierte `localhost`-Aufrufe).
+
+Regression der Reparatur aus dem vorherigen Abschnitt bestätigt:
+`audio/inbox/audio_20260819_141715_001.json` überlebt den `test_capture.py`-Lauf,
+`data/` bleibt ignoriert, `git status` leer.
+
+### Offene Punkte (unverändert, nicht durch diese Session entstanden)
+
+- Echte Runtime-Abnahme fehlt weiterhin: keine GGUF-Modelle, kein
+  `llama-cpp-python`, kein whisper.cpp, kein LFM-Audio, kein PortAudio, kein
+  `espeak-ng`. 3 Suiten `NOT_EXECUTED`, 16 Tests `skip`. Auf der Referenz-
+  maschine ist `bash scripts/local_update.sh` ohne `--mock` auszuführen.
+- Gate `voice_forensics_v1` bleibt `OPEN`; die Neuvermessung
+  (`scripts/measure_voice_turn.py --record --turns 3`) braucht die Zielhardware.
+- `next_authorized_phase: NONE` und `hard_stop: true` bleiben bestehen. Diese
+  Session hat keine neue Phase autorisiert oder begonnen.
+- Beobachtung ohne Änderung: `POST /audio/tts` meldet bei nicht verfügbarer
+  Runtime `500` mit sauberer Fehlerstruktur (`tts_failed`). Semantisch wäre
+  `503` treffender; die Änderung wurde nicht vorgenommen, weil kein Test den
+  Code festlegt und sie den API-Vertrag verschieben würde — Entscheidung
+  bewusst vertagt, nicht übersehen.
+
+### Abschluss
+
+Session wird archiviert. Branch `arena/ba3bbc69-guialita` wird per PR in `main`
+überführt (Autorisierung durch den Nutzer erteilt). `docs/INTEGRITY_MARKER.txt`
+und alle `docs/PHASE_*`-Berichte bleiben unverändert: sie sind historische
+Belege und werden nach ihrer Erstellung nicht mehr geändert.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.

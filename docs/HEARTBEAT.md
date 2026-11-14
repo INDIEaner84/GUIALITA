@@ -23,6 +23,11 @@ Schritte.
 | Audit-Ablage | folgt jetzt `GUIALITA_DATA_ROOT`; `data/*.jsonl` ignoriert |
 | Echte LLM-/STT-/TTS-Runtime | **nicht nachgewiesen** — keine Modelle, kein whisper.cpp, kein LFM-Audio |
 | Voice-Turn-Neuvermessung (Gate) | weiter OPEN — braucht Zielhardware |
+| `main`-Abgleich | keine neuen Commits auf `origin/main`; Merge Konflikt-frei (fast-forward) |
+| Umgebungs-Wiederherstellung | Branch-Zeiger verlustfrei auf `5e68392` zurückgesetzt, `.venv` neu gebaut |
+| Reproduzierbarkeitsregel | dokumentiert: gitignored-Pfade neu aufbauen, Verifikation neu ausführen |
+| Vorschau-Tauglichkeit | geprüft: fremder `Host` → 200, CORS `*`, Frontend nur relative Pfade |
+| Session-Abschluss | archiviert; Überführung nach `main` per PR (durch Nutzer autorisiert) |
 
 Mock-Läufe werden als `PASS (mock)` ausgewiesen: Sie beweisen Chat-, Memory-,
 Audit- und API-Pfad, **nicht** Inferenz, GPU, STT oder TTS.

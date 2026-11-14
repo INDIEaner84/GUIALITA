@@ -59,16 +59,50 @@ nicht durch Annahme, nicht durch einen alten Report.**
 In dieser Reihenfolge ausführen. Jeder Schritt muss sein Ergebnis zeigen, bevor
 der nächste beginnt.
 
-### Schritt 0 — Ausgangszstand erfassen
+### Schritt 0 — Ausgangszustand erfassen
 
 ```bash
 git status --short
 git log --oneline -3
 git rev-parse --abbrev-ref HEAD
+git fetch origin --prune
+git log --oneline HEAD..origin/main          # leer = nichts zu integrieren
+git merge-base --is-ancestor origin/main HEAD && echo "merge Konflikt-frei"
 ```
 
 Erwartung: Branch bekannt, Arbeitsstand notiert. **Niemals** die Branch wechseln,
 `git push --force` ausführen oder `.git` anfassen.
+
+#### Umgebung kann zwischen Läufen verloren gehen
+
+`.venv/`, `data/`, `scripts/logs/` und Caches sind gitignored und in
+Agent-/CI-Umgebungen **nicht garantiert vorhanden**. Prüfen, bevor ein alter
+Testbericht als Nachweis gilt:
+
+```bash
+ls -d .venv data scripts/logs 2>/dev/null
+.venv/bin/python -c "import fastapi" 2>&1 | tail -1
+curl -sf -m 3 localhost:8080/health >/dev/null && echo "Backend läuft" || echo "Backend steht"
+```
+
+Fehlt die Umgebung: neu aufbauen (`bash scripts/local_update.sh --mock`) und
+**alle** Prüfungen neu ausführen. Ein historisches Ergebnis belegt den aktuellen
+Stand nicht (siehe `docs/SINGLE_SOURCE_OF_TRUTH.md`).
+
+#### Branch-Zeiger stimmt nicht mit dem Remote überein
+
+Beobachtetes Muster: Arbeitsbaum enthält die Änderungen, der lokale Zeiger steht
+aber auf der Basis, und der Commit liegt bereits auf dem Remote. **Erst
+vergleichen, dann reparieren** — niemals blind `reset --hard` oder force-push:
+
+```bash
+git fetch origin <branch>
+git diff FETCH_HEAD --stat                       # getrackte Dateien
+git show FETCH_HEAD:<datei> | diff - <datei>     # je neuer/untracked Datei
+git reset --mixed FETCH_HEAD                     # erst wenn alles identisch ist
+```
+
+`--mixed` versetzt nur Zeiger und Index, der Arbeitsbaum bleibt unangetastet.
 
 ### Schritt 1 — Ein-Kommando-Update (bevorzugt)
 
@@ -176,6 +210,29 @@ Beendet **nur** GUIALITA-Prozesse. Ollama läuft weiter.
    Zahlen (PASS/FAIL/NOT_EXECUTED/Skips), Umgebung, offene Punkte.
 3. `docs/HEARTBEAT.md` — Ansicht nachziehen, falls STATE sich änderte.
 4. Commit mit Begründung; bei frozen-Schichten **beide Testläufe** nennen.
+
+### Schritt 9 — Session abschließen (nur mit ausdrücklicher Autorisierung)
+
+Merge in `main` ist keine Routinehandlung. Voraussetzung ist eine **explizite**
+Freigabe des Nutzers für PR und Merge; ohne sie endet die Arbeit am Commit auf
+der Arbeits-Branch. Vor dem Merge:
+
+```bash
+git fetch origin --prune
+git log --oneline HEAD..origin/main    # leer = nichts zu integrieren
+.venv/bin/python scripts/run_all_tests.py   # frischer Lauf, 0 FAIL
+git status --short                     # leer = keine Laufzeitdaten staged
+```
+
+Regeln für den Abschluss:
+
+- Divergiertes `main` **vor** dem Merge integrieren und Konflikt-Ursachen
+  benennen; keine Konflikte durch Überschreiben fremder Änderungen lösen.
+- Nur die aktuelle Arbeits-Branch pushen, nie eine andere.
+- `docs/INTEGRITY_MARKER.txt` und `docs/PHASE_*` sind historische Belege und
+  bleiben unverändert — auch beim Archivieren.
+- Offene Punkte (fehlende Runtime-Abnahme, offene Gates) im Abschluss-Eintrag
+  wiederholen, damit sie nicht mit dem Merge als erledigt gelten.
 
 ---
 

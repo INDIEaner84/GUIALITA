@@ -314,6 +314,32 @@ testing:
     test_memory_graph, test_api im Mock-Modus). test_tts, test_capture und
     test_process_audio brauchen echte Audio-Runtimes bzw. Hardware und bleiben
     NOT_EXECUTED. Ein Mock-Lauf ersetzt keine Runtime-Abnahme.
+  reproducibility:
+    status: DOCUMENTED
+    date: 2026-11-13
+    entry_point: "bash scripts/local_update.sh [--mock]"
+    non_persisted_paths:
+      - ".venv/"
+      - "data/ (SQLite + audit.jsonl)"
+      - "scripts/logs/"
+      - "__pycache__/, .pytest_cache/"
+    rule: >
+      Diese Pfade sind gitignored und damit in Agent-/CI-Umgebungen zwischen
+      Läufen nicht garantiert vorhanden. Nach jedem Umgebungswechsel ist die
+      Verifikation NEU auszuführen; ein älterer Testbericht gilt nicht als
+      Nachweis für den aktuellen Stand (siehe SINGLE_SOURCE_OF_TRUTH.md:
+      "historische Testergebnisse ohne aktuellen Lauf" sind keine Statusquelle).
+    recovery_note: >
+      Beobachtet am 2026-11-13: Der lokale Branch-Zeiger stand wieder auf der
+      Basis (4b3762b), während der Arbeitsbaum die Änderungen enthielt und der
+      Commit bereits auf dem Remote lag (5e68392). Wiederherstellung verlustfrei
+      über fetch, byte-weisen Vergleich von Arbeitsbaum und Remote-Commit und
+      anschließendes 'git reset --mixed' auf den gefetchten Stand. Arbeitsbaum
+      und .git wurden dabei nicht überschrieben.
+    recovery_rule: >
+      Vor jedem reset/checkout erst prüfen, ob Arbeitsbaum und Ziel-Commit
+      inhaltlich identisch sind (git diff bzw. Vergleich der Blobs). Niemals
+      'git reset --hard' oder 'git push --force' zur Reparatur nutzen.
 
 # ------------------------------------------------------------
 # Verifizierte Umgebung (Referenzmaschine)
