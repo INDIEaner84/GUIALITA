@@ -464,6 +464,54 @@ Testfunktionen**: 25/33/26 Tests, Gesamtzahl bleibt 307/19.
 Unverändert: P0, Live-Inferenz, echte VRAM-/Latenzmessung,
 `current.hard_stop: true`, `next_authorized_phase: NONE`, `prohibitions`.
 
+## Externe CI-Gegenprobe und `main`-Abgleich (2026-11-13)
+
+Ziel: nach dem lokalen Abschluss nicht erneut Zahlen behaupten, sondern den
+Remote-Zustand und die Integrationsfähigkeit prüfen. Keine Codeänderung an den
+Werkzeugen.
+
+### Evidenz
+
+```text
+gh run view 43621040654                       → completed / success, event push
+  Job „Inventar, Werkzeuge ↔ SSOT"           → success, 13/13 Schritte grün
+  u. a. Standardbibliothek-Suiten, Golden Set, Rollen-YAML, Registry,
+  Eval, VRAM-Budget, MUSCAL-Trockenlauf, Live-Contract, check_docs.py
+gh run list --branch arena/f82209dd-guialita → 4 × success
+  43408033608 (7b6ca86), 43425145999 (12afaed),
+  43618536071 (03c0522), 43621040654 (9b0e498)
+gh pr list --state all                       → kein PR für diesen Branch
+gh api .../workflows/state-consistency.yml   → State Consistency | active
+```
+
+### Befund: `main` ist nicht mehr die Basis
+
+`git fetch origin main` liefert `7caea0e` (Merge PR #4). Seit `4b3762b` sind
+dort fünf Commits mit Mock-Test-Adapter, `scripts/local_update.sh` und
+`AGENTS.md` dazugekommen. Deren SSOT nennt **145 Testfunktionen in 9 Suiten**;
+`tests/test_api.py` hat dort 27 statt 23 Testfunktionen.
+
+```text
+git merge-base HEAD FETCH_HEAD               → 4b3762b
+git merge-tree --write-tree HEAD FETCH_HEAD  → RC 1, 4 Konflikte
+  README.md, docs/GUIALITA_STATE.yaml,
+  docs/HEARTBEAT.md, docs/SESSION_LOG.md
+Auto-Merging (beidseitig geändert): .gitignore, scripts/run_all_tests.py
+```
+
+Ein Merge ergäbe rechnerisch **311 Testfunktionen in 19 Suiten** — also weder
+307/19 noch 145/9. Ohne gemeinsame Neubaseline wäre `--check-state` danach
+nicht mehr belastbar. Details und Fahrplan: `docs/INTEGRATION_STATUS.md`.
+
+### Entscheidung
+
+Kein Merge, kein PR, keine Zahl umgeschrieben. `docs/INTEGRATION_STATUS.md`
+hält den Befund fest; dieses Protokoll und `docs/HEARTBEAT.md` verweisen darauf.
+`current.hard_stop: true`, `next_authorized_phase: NONE` und `prohibitions`
+bleiben unverändert. Die Integration ist eine Review-Entscheidung, keine
+Implementierungsfreigabe. Die externen CI-Läufe belegen nur diesen Branch —
+keine Inferenz, kein VRAM, keine Hardware- oder Modellabnahme.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.
