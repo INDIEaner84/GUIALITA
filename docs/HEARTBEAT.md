@@ -21,8 +21,9 @@ Zuletzt fortgeschrieben: 2026-11-13.
 - MUSCAL bleibt CLI/HTTP, kein Desktop-Adapter, keine parallelen Agenten.
 - Extern geprüft: `gh run view 43621040654` → `success`, 16/16 Schritte des
   Workflows `State Consistency` grün (10 Prüfschritte); der Folgelauf
-  `43622338506` auf `005755b` ebenfalls grün. Insgesamt fünf Push-Läufe auf
-  diesem Branch erfolgreich. Kein PR eröffnet (nicht freigegeben).
+  `43622338506` auf `005755b` sowie `43622915315` auf `56e3597` ebenfalls
+  grün. Alle bislang geprüften Push-Läufe auf diesem Branch erfolgreich.
+  Kein PR eröffnet (nicht freigegeben).
 - `origin/main` ist auf `7caea0e` weitergezogen und nennt 145 Testfunktionen in
   9 Suiten. Der trockene Merge-Test meldet 4 Konfliktdateien; Details und
   Fahrplan in `docs/INTEGRATION_STATUS.md`. Dieser Branch bleibt bei

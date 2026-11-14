@@ -478,9 +478,10 @@ gh run view 43621040654                       → completed / success, event pus
   davon 10 Prüfschritte (u. a. Standardbibliothek-Suiten, Golden Set,
   Rollen-YAML, Registry, Eval, VRAM-Budget, MUSCAL-Trockenlauf,
   Live-Contract, check_docs.py), 6 Setup-/Post-/Abschlussschritte
-gh run list --branch arena/f82209dd-guialita → 4 × success
+gh run list --branch arena/f82209dd-guialita → 6 × success (Snapshot)
   43408033608 (7b6ca86), 43425145999 (12afaed),
-  43618536071 (03c0522), 43621040654 (9b0e498)
+  43618536071 (03c0522), 43621040654 (9b0e498),
+  43622338506 (005755b), 43622915315 (56e3597)
 gh pr list --state all                       → kein PR für diesen Branch
 gh api .../workflows/state-consistency.yml   → State Consistency | active
 ```

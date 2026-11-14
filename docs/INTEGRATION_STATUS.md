@@ -12,13 +12,14 @@ der 13 aktuellen Dokumente verfälschen.
 | | Commit | Testinventar | Besonderheit |
 |---|---|---|---|
 | Merge-Basis | `4b3762b` | 141 / 9 (damals behauptet) | Ausgangspunkt beider Zweige |
-| Dieser Branch | `005755b` (Code: `9b0e498`) | **307 Testfunktionen in 19 Suiten** | ADR-002 P1–P6, AST-Zählung, 7 Standardbibliothek-Suiten |
+| Dieser Branch | `56e3597` (Code: `9b0e498`) | **307 Testfunktionen in 19 Suiten** | ADR-002 P1–P6, AST-Zählung, 7 Standardbibliothek-Suiten |
 | `origin/main` | `7caea0e` | **145 Testfunktionen in 9 Suiten** | Mock-Test-Adapter, `local_update.sh`, `AGENTS.md` |
 
 `main` ist seit dem Branching um fünf Commits weitergezogen
-(`5e68392`, `5643df9`, `1bee303`, `4cde07a`, `7caea0e`); dieser Branch um fünf
-(`7b6ca86`, `12afaed`, `03c0522`, `9b0e498`, `005755b`). `005755b` ist rein
-dokumentarisch und ändert kein Werkzeug und keine Testzahl. Beide Zweige haben unabhängig
+(`5e68392`, `5643df9`, `1bee303`, `4cde07a`, `7caea0e`); dieser Branch um sechs
+(`7b6ca86`, `12afaed`, `03c0522`, `9b0e498`, `005755b`, `56e3597`) zuzüglich
+weiterer rein dokumentarischer Pushes. Seit `9b0e498` wurde kein Werkzeug und
+keine Testzahl geändert. Beide Zweige haben unabhängig
 versucht, dasselbe Testinventar zu konsolidieren — mit **unterschiedlichen
 Ergebnissen**. Das ist der Kern des Konflikts, nicht bloß Text.
 
@@ -56,7 +57,8 @@ rot machen.
 ## Extern verifiziert: CI auf GitHub
 
 Der Workflow `.github/workflows/state-consistency.yml` ist auf GitHub aktiv.
-Alle fünf Push-Läufe auf diesem Branch sind `success`:
+Alle bis zum Bericht geprüften sechs Push-Läufe auf diesem Branch sind
+`success`:
 
 | Run | Commit | Ergebnis |
 |---|---|---|
@@ -65,6 +67,10 @@ Alle fünf Push-Läufe auf diesem Branch sind `success`:
 | `43618536071` | `03c0522` | success |
 | `43621040654` | `9b0e498` | success, **16/16 Schritte** (10 Prüfschritte) |
 | `43622338506` | `005755b` | success, **16/16 Schritte** (10 Prüfschritte) |
+| `43622915315` | `56e3597` | success, **16/16 Schritte** (10 Prüfschritte) |
+
+Die Tabelle ist ein Snapshot: jeder weitere dokumentarische Push erzeugt einen
+weiteren Lauf und ändert den Befund nicht.
 
 `gh run view 43621040654` zeigt 16 Schritte, alle `success`; darunter die
 zehn eigentlichen Prüfschritte: Inventarabgleich, sieben
