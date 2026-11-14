@@ -110,12 +110,12 @@ Run-IDs stehen in `docs/SESSION_LOG.md`.
 
 ## PR #5
 
-`gh pr create` → **PR #5**, `OPEN`, `mergeable: MERGEABLE`, Basis `main`,
-Head `arena/f82209dd-guialita`. Der trockene Gegen-Merge
+`gh pr create` → **PR #5** (`main` ← `arena/f82209dd-guialita`), bei
+Erstellung `OPEN` und `mergeable: MERGEABLE`. Der trockene Gegen-Merge
 (`git merge-tree --write-tree origin/main HEAD`) liefert RC 0 — die
 Konflikte sind also auch aus Sicht von `main` aufgelöst.
 
-`mergeStateStatus` ist `UNSTABLE`, weil der auf `pull_request` laufende
+`mergeStateStatus` war bei Erstellung `UNSTABLE`, weil der auf `pull_request` laufende
 Workflow `Auto PR Review` (`.github/workflows/audit-pr.yml`, externe
 OpenCode/OpenRouter-Action) mit `review → failure` endet. Das ist **kein
 Fehler dieser Integration**: derselbe Check ist auf PR #3 und PR #4
@@ -125,8 +125,9 @@ Pull-Request-Run `43626127557` grün. Der fremde Review-Workflow wurde nicht
 geändert — das braucht eine eigene Freigabe und vermutlich ein konfiguriertes
 Secret bzw. einen externen Dienst.
 
-Die Übernahme nach `main` bleibt eine Review-Entscheidung; dieser PR wurde
-nicht selbst gemergt.
+Die Übernahme nach `main` ist eine eigene Review-Entscheidung und wird von
+diesem Bericht nicht vorgenommen; sie erfolgt als separater, ausdrücklich
+freigegebener Schritt.
 
 ## Grenzen
 

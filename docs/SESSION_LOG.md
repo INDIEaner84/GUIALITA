@@ -907,8 +907,8 @@ README und `tests/test_doc_consistency.py` sind auf 311/19 nachgezogen.
 
 ```text
 gh pr create --base main --head arena/f82209dd-guialita
-  → https://github.com/INDIEaner84/GUIALITA/pull/5 (OPEN)
-gh pr view 5 → mergeable: MERGEABLE, mergeStateStatus: UNSTABLE
+  → https://github.com/INDIEaner84/GUIALITA/pull/5 (eröffnet)
+gh pr view 5 → mergeable: MERGEABLE, mergeStateStatus: UNSTABLE (bei Erstellung)
 git merge-tree --write-tree origin/main HEAD → RC 0, keine Konflikte
 gh run view 43626009032 (push)         → success, 16/16 Schritte
 gh run view 43626127557 (pull_request) → success, 16/16 Schritte
@@ -919,7 +919,8 @@ Der rote `review`-Check stammt aus dem vorbestehenden Workflow
 `.github/workflows/audit-pr.yml` (externe OpenCode/OpenRouter-Action). Er ist
 auf PR #3 und PR #4 identisch fehlgeschlagen; beide wurden gemergt. Er ist
 damit kein Regression dieses Merges. Der Workflow wurde nicht verändert —
-das wäre eine eigene Freigabe. Der PR wurde geöffnet, **nicht gemergt**.
+das wäre eine eigene Freigabe. Der PR wurde geöffnet; die Übernahme nach
+`main` erfolgt als eigener, ausdrücklich freigegebener Schritt.
 
 ### Nicht belegt
 
