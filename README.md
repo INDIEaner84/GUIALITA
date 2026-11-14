@@ -2,10 +2,13 @@
 
 **Browser → Local LFM → Memory → Sprache**
 
-> Aktueller Stand: Voice Activation V1, persistente Sessions, Memory-Retrieval,
+> Kurzfassung: Voice Activation V1, persistente Sessions, Memory-Retrieval,
 > Knowledge-Graph, Whisper-STT und LFM-TTS sind implementiert. Die kanonische
 > Pipeline ist lokal und hardwareabhängig; Vision/Desktop-Control liegen noch
-> als separate Prototypen unter `PROTOTYPEN/` vor.
+> als separate Prototypen unter `PROTOTYPEN/` vor. **Maßgeblicher
+> Phasenstatus: `docs/GUIALITA_STATE.yaml`.** Die ADR-002-Werkzeuge für Eval,
+> VRAM-Budget, Rollen und MUSCAL sind CLI/HTTP-Selbsttests, keine produktive
+> Orchestrierungsschicht und keine Desktop-App.
 
 ## Schnellstart
 
@@ -187,17 +190,22 @@ Listet alle konfigurierten Modelle mit Verfügbarkeit.
 
 ## Tests
 
-Kanonischer Einstieg — jede Suite läuft genau einmal, keine Doppelzählung:
+Der kanonische Lauf führt jede Suite genau einmal aus und stuft fehlende
+Voraussetzungen als `NOT_EXECUTED` ein — nie als `PASS`. Verbindlich sind
+**311 Testfunktionen in 19 Suiten**; sieben Suiten laufen ohne Backend, GPU,
+Modelle und ohne installierte Drittpakete. Der Zähler arbeitet per AST, nicht
+per Regex.
 
 ```bash
-python3 scripts/run_all_tests.py           # alle 9 Suiten
-python3 scripts/run_all_tests.py --list    # nur Inventar
-python3 scripts/run_all_tests.py --only api
-python3 scripts/run_all_tests.py --yaml    # Report nach docs/measurements/
+python3 scripts/run_all_tests.py                    # alles, was hier laufen kann
+python3 scripts/run_all_tests.py --list             # Inventar ohne Ausführung
+python3 scripts/run_all_tests.py --only api         # einzelne Suiten
+python3 scripts/run_all_tests.py --check-state     # Runner ↔ SSOT
+python3 scripts/check_docs.py                     # Zahlen in den aktuellen Dokumenten
 ```
 
-Voraussetzung: Backend läuft (`bash scripts/start.sh`). Jede Suite wird vorher
-auf ihre Voraussetzungen geprüft und ehrlich klassifiziert:
+Für die Runtime-Suiten muss das Backend laufen (`bash scripts/start.sh`).
+Der Runner prüft jede Voraussetzung vorab und klassifiziert ehrlich:
 
 | Klassifizierung | Bedeutung |
 |---|---|
@@ -205,15 +213,6 @@ auf ihre Voraussetzungen geprüft und ehrlich klassifiziert:
 | `PASS (mock)` | gelaufen dank Test-Adapter — echte LLM-Runtime **nicht** nachgewiesen |
 | `FAIL` | echter Fehler — muss repariert werden |
 | `NOT_EXECUTED` | Voraussetzung fehlt (Modell, Runtime, Mikrofon); zählt **nicht** als bestanden |
-
-Enthaltene Prüfungen (Auszug `tests/test_api.py`):
-
-1. **API Health** - `/health` liefert API- und Runtime-Status
-2. **Diagnostics** - Pfade absolut, aufgelöst, Fähigkeiten + `ready_for_voice_turn`
-3. **Model Connectivity** - Modelle gelistet und verfügbar
-4. **Chat API** - Erfolg, Fehlerfälle (400/404), Format
-5. **End-to-End** - echter Chat: "…CONNECTION TEST OK" muss vom LFM kommen
-6. **Mock-Runtime** - voller Chat-/Memory-/Audit-Pfad ohne Modelle und ohne GPU
 
 ### Testen ohne Modelle (`--mock`)
 
@@ -228,6 +227,23 @@ python3 scripts/run_all_tests.py
 Das beweist API-Vertrag, Sessions, Memory/Retrieval, Graph, Audit und Export.
 Es beweist **keine** Inferenz, keine GPU, kein STT und kein TTS — diese Tests
 bleiben mit Begründung übersprungen. `ready_for_voice_turn` bleibt `false`.
+Ein-Kommando-Update und Verifikation: `bash scripts/local_update.sh [--mock]`.
+
+ADR-002-Werkzeuge (CLI/HTTP, ohne PyYAML prüfbar):
+
+```bash
+python3 scripts/eval.py --dry-run --all-suites
+python3 scripts/modelsctl.py budget
+python3 scripts/roles.py validate --check-mirror
+python3 scripts/roles.py switch router planner
+python3 scripts/muscal.py run "Aufgabe" --dry-run
+python3 scripts/muscal.py serve --port 8099
+python3 scripts/contract_check.py              # Live-Clients gegen echtes HTTP-Schema
+```
+
+`eval.py --live`, `modelsctl.py switch/start/stop` und `muscal.py --live`
+brauchen ein laufendes Backend bzw. die Referenzmaschine. Ein grüner
+Sandbox-Lauf ist keine Hardware-Abnahme. Details: `docs/adr/ADR-002-agent-orchestration.md`.
 
 ---
 
@@ -270,24 +286,46 @@ GUIALITA/
 │   ├── lfm-audio-1.5b/
 │   ├── lfm-vision-3b/
 │   └── lfm-vision-1.6b/
+├── config/
+│   ├── models.yaml           # Modell- und Server-Konfiguration
+│   ├── roles.json            # Rollen-Registry (maschinelle Quelle)
+│   ├── roles.yaml            # generierte YAML-Ansicht
+│   └── model_budget.json     # deklariertes VRAM-Budget
+├── evals/                    # Golden Set + Rollen-Eval-Suiten
 ├── scripts/
+│   ├── run_all_tests.py      # kanonischer Testrunner
+│   ├── benchmark.py          # Stufenmessung, p50/p95, --compare
+│   ├── eval.py               # Golden Set, Grader, Live/Compare
+│   ├── modelsctl.py          # VRAM-Budget, Lifecycle, Wechselmessung
+│   ├── roles.py              # Registry-Validierung, Rollenwechsel
+│   ├── muscal.py             # sequenzielle Kette: CLI + HTTP
+│   ├── build_golden.py       # evals/golden.json erzeugen/prüfen
+│   ├── build_roles.py        # config/roles.yaml erzeugen/prüfen
+│   ├── check_docs.py         # Zahlen und Grenzen in den Dokumenten
+│   ├── contract_check.py     # Live-Clients gegen echtes HTTP-Schema (Fake-Backend)
 │   ├── start.sh              # Hauptstart (Menü + Terminal)
 │   ├── stop.sh               # Stoppt nur GUIALITA-Prozesse
 │   ├── download_models.sh    # LFM-Modelle von Hugging Face
 │   └── install_desktop.sh    # Installiert GUIALITA.desktop
-└── tests/test_api.py         # Health-, Chat-, E2E-Tests
+└── tests/                    # 19 Suiten, siehe docs/GUIALITA_STATE.yaml
 ```
 
 ---
 
-## Phasenplan
+## Historischer Phasenplan (kein Status)
 
-| Phase | Inhalt | Status |
-|-------|--------|--------|
-| **0** | Browser → Local LFM → Browser | ✅ abgeschlossen |
+Diese Tabelle ist der Konzeptstand vom 2026-08-19. Sie ist **keine
+Statusquelle**; maßgeblich ist `docs/GUIALITA_STATE.yaml`.
+
+| Phase | Inhalt | Damalige Notiz |
+|-------|--------|----------------|
+| **0** | Browser → Local LFM → Browser | abgeschlossen |
 | 1 | Microphone → LFM Audio → Text → Browser | Modell vorhanden |
 | 2 | LFM Vision → Desktop erkennen | Modell vorhanden |
-| 3 | Desktop Control / Computer Use | – |
-| 4 | Knowledge Objects | – |
-| 5 | Worker-Agenten | – |
-| 6+ | Overlay, Graph, Multi-Device | – |
+| 3 | Desktop Control / Computer Use | nicht begonnen |
+| 4 | Knowledge Objects | nicht begonnen |
+| 5 | Worker-Agenten | nicht begonnen |
+| 6+ | Overlay, Graph, Multi-Device | nicht begonnen |
+
+`prohibitions`, `current.hard_stop` und `next_authorized_phase` stehen
+ausschließlich in der SSOT und sind unverändert.

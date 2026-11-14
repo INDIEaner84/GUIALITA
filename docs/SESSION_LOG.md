@@ -164,6 +164,366 @@ Commit: `8bb9500 Make voice pipeline session-aware and improve local setup`
 - M4/M5 und die verbleibenden Hardware-/Runtime-Blocker sind jetzt einheitlich
   ausgewiesen.
 
+## 2026-11-13 — ADR-002: Agenten-Orchestrierung (Entwurf, historisch)
+
+### Ziel
+
+Architekturentscheidung für die geplante MUSCAL-Orchestrierungsschicht
+festhalten, bevor Code entsteht. Dieser Eintrag beschreibt den Stand **vor**
+P1/P2 und vor den P3–P6-Werkzeugen; die Fortschreibung steht unten.
+
+### Änderungen
+
+- `docs/adr/ADR-002-agent-orchestration.md` neu angelegt, Status **PROPOSED**.
+- Keine Codeänderung, keine Änderung an `GUIALITA_STATE.yaml`, keine
+  Aufhebung von `prohibitions`.
+
+### Befunde
+
+- Zum Entwurfszeitpunkt war MUSCAL `future_target: PLANNED`; Laden, Wechseln,
+  Trainieren und Benchmark-Orchestrierung existierten noch nicht.
+- `testing.ci_note` nennt „sieben von neun" Suiten mit Voraussetzungen,
+  `known_risks` nennt „8 von 9". Die Voraussetzungstabelle in
+  `REGRESSION_CONTRACT.md` belegt **8 von 9**; die `ci_note` ist falsch.
+- `scripts/benchmark.py` misst ausschließlich `memory.embed` und optional
+  `GET /health`; keine Turn-, Wechsel- oder Modellvergleichsmessung.
+
+### Entscheidungen im Entwurf
+
+D1 Eval-Harness vor Orchestrierung · D2 Rollen als Konfiguration, kein LoRA
+als Rollenidentität · D3 Lifecycle mit VRAM-Budget, Wechsel als Kostenstelle ·
+D4 MUSCAL beginnt als CLI/HTTP · D5 Verifikation lokal, Cloud nur für Code ·
+D6 Prozessisolation · D7 SSOT-Zahlen vorher konsolidieren.
+
+### Offen zum Zeitpunkt des Entwurfs
+
+- Freigabe für P3–P6 (neue Schichten) stand aus. Die CLI/HTTP-Werkzeuge wurden
+  später als Selbsttests umgesetzt; `prohibitions`, `hard_stop` und
+  `next_authorized_phase` blieben unverändert (siehe Eintrag „P3–P6 umgesetzt").
+- P0 (`voice_forensics_v1` nachmessen) und P1 (SSOT-Zahlen) waren ohne neue
+  Freigabe möglich.
+
+## 2026-11-13 — P1/P2 umgesetzt: Inventar korrigiert, Benchmark pro Stufe
+
+### Ziel
+
+Die in ADR-002 als freigabefrei markierten Schritte umsetzen: Zahlen der SSOT
+gegen die Realität abgleichen (P1) und den Benchmark von einer Alibi-Messung zu
+einer Stufenmessung machen (P2).
+
+### Änderungen
+
+- `scripts/run_all_tests.py`
+  - `count_test_functions` zählt per `ast` statt per Regex `\s+def test`.
+  - `test_audit.py`, `test_chat_service.py`, `test_audio_contract.py` sind in
+    `SUITES` aufgenommen; sie standen in der SSOT, liefen aber nie.
+  - neue Fähigkeit `deps` (pydantic/fastapi importierbar).
+  - neuer Befehl `--check-state`: gleicht Runner-Inventar gegen
+    `docs/GUIALITA_STATE.yaml` ab, Exitcode 1 bei Abweichung.
+- `scripts/benchmark.py` neu geschrieben: Stufen getrennt (Embedding, Chat,
+  TTS, STT/Turn aus dem Audit-Log), Perzentile, `--compare`, `--json`.
+  Fehlende Messungen erscheinen als `—`, nicht als 0 ms.
+- `tests/test_benchmark.py` neu (10 Tests, reine Standardbibliothek).
+- `.github/workflows/state-consistency.yml` neu: CI-Abgleich Inventar ↔ SSOT,
+  ohne Backend, GPU oder Modelle.
+- `docs/GUIALITA_STATE.yaml`: `testing`-Block ersetzt (177 Funktionen,
+  13 Suiten, Ursachen der Korrektur, `suite_inventory` konsolidiert),
+  `known_risks` und `ci_note` korrigiert, `meta.updated` gesetzt.
+- `docs/BASELINES/REGRESSION_CONTRACT.md`: Tabelle und Summe korrigiert,
+  Korrekturabschnitt 2026-11-13 ergänzt, alte 141 als überholt markiert.
+- `docs/adr/ADR-002-agent-orchestration.md`: Abschnitt „Umsetzungsstand".
+
+### Befunde
+
+- Die Zahl 141 war falsch. Ursachen: (a) der Zähler erfasste nur eingerückte
+  TestCase-Methoden, `test_process_audio.py` meldete 5 statt 14,
+  `test_capture.py` 0 statt 6; (b) drei Suiten des Hauptzweigs standen nicht
+  in der Runner-Liste und liefen nie.
+- Zwischenstand nach diesem Eintrag: **177 Testfunktionen in 13 Suiten**.
+- `ci_note` sagte „sieben von neun", `known_risks` „8 von 9" — beide falsch;
+  zutreffend waren damals **8 von 13**, heute **8 von 19** Suiten mit
+  Laufzeitvoraussetzung (Fortschreibung unten).
+
+### Läufe (Sandbox, ohne Modelle, GPU, Mikrofon)
+
+- `python3 scripts/run_all_tests.py --check-state` → „Keine Abweichung", RC 0
+- `python3 scripts/run_all_tests.py` → 1 PASS (`test_benchmark.py` 10/10),
+  12 NOT EXECUTED, 0 FAIL. Kein FAIL durch fehlende Python-Pakete mehr.
+- `python3 tests/test_benchmark.py` → 10 Tests, OK
+- `python3 scripts/benchmark.py` → lokale Messung nicht möglich (numpy fehlt
+  in der Sandbox), sauber ausgewiesen statt als 0 ms
+- `python3 scripts/benchmark.py --live` → RC 2, „nicht durchgeführt"
+
+### Offen zum Zeitpunkt des Eintrags
+
+- **P0** — Nachmessung der Sprachlatenz auf der Referenzmaschine. In dieser
+  Umgebung nicht durchführbar (keine GPU, kein Mikrofon, keine Modelle).
+- **P3–P6** — Eval-Harness, Lifecycle-Manager, Rollen-Registry und MUSCAL-CLI
+  waren zu diesem Zeitpunkt noch nicht umgesetzt. Fortgeschrieben im nächsten
+  Eintrag. `prohibitions` blieben unverändert.
+
+## 2026-11-13 — P3–P6 umgesetzt: Eval, Lifecycle, Rollen, MUSCAL CLI/HTTP
+
+### Ziel
+
+Die ADR-002-Werkzeuge so weit liefern, wie es ohne GPU, Backend, Mikrofon und
+Modelle beweisbar ist — ohne eine Hardware-Abnahme zu behaupten und ohne die
+`prohibitions` oder `current.hard_stop` anzutasten.
+
+### Änderungen
+
+- `config/roles.json` (maschinelle Quelle) und generiertes
+  `config/roles.yaml` (ADR-002 D2) mit vier Rollen; `evals/roles/*.json` mit
+  vier Rollen-Suiten; `evals/golden.json` generiert. Generatoren:
+  `scripts/build_golden.py`, `scripts/build_roles.py`.
+- `scripts/eval.py`: Golden Set, Grader inklusive `min_list_len`, `--dry-run`,
+  `--live --model`, `--compare`, p50/p95, Ressourcen-Snapshot mit expliziter
+  „nicht gemessen"-Markierung.
+- `config/model_budget.json` und `scripts/modelsctl.py`: dreivertiges
+  VRAM-Urteil (`fits`/`too_big`/`unknown`), `budget`, `plan`, `status`,
+  `health`, `switch`, `load`, `start`, `stop`, `unload`. Prozesse werden nur an
+  `start.sh`/`stop.sh` delegiert; Ollama bleibt unangetastet.
+- `scripts/roles.py`: Registry-Validierung, JSON↔YAML-Abgleich, Rollenwechsel
+  `router → planner` ohne Modellwechsel. Invariante: Auditor hat kein
+  Schreibrecht, mutierende Tools brauchen `requires_approval`.
+- `scripts/muscal.py`: sequenzielle Kette als CLI und HTTP (`serve`), Audit-Log,
+  STOP-Datei, Schrittgrenze, Staging-Guard, Schema-Prüfung pro Rolle. Kein
+  Desktop-Adapter, keine parallelen Agenten, keine Cloud-Inferenz.
+- `scripts/check_docs.py`: prüft aktuelle Zahlen, Grenzen und generierte
+  Artefakte über SSOT, Regression Contract, Bootstrap, ADR, dieses Protokoll
+  und den CI-Workflow hinweg.
+- Sechs neue Testsuiten (`test_eval.py`, `test_modelsctl.py`, `test_roles.py`,
+  `test_muscal.py`, `test_muscal_http.py`, `test_doc_consistency.py`) mit
+  zusammen 130 Testfunktionen, alle ohne Backend und ohne Drittpakete.
+- `scripts/run_all_tests.py`, `docs/GUIALITA_STATE.yaml`,
+  `docs/BASELINES/REGRESSION_CONTRACT.md`, `docs/GUIALITA_SESSION_BOOTSTRAP.md`,
+  `docs/adr/ADR-002-agent-orchestration.md`, `.gitignore`,
+  `.github/workflows/state-consistency.yml` und `README.md` nachgezogen.
+
+### Prüfungen (Sandbox, ohne Hardware)
+
+```text
+python3 scripts/eval.py --dry-run                 → 19 Aufgaben, alle Urteile wie erwartet
+python3 scripts/eval.py --dry-run --all-suites    → 4 Rollen-Suiten OK
+python3 scripts/build_golden.py --check           → OK
+python3 scripts/build_roles.py --check            → OK
+python3 scripts/roles.py validate --check-mirror  → OK
+python3 scripts/modelsctl.py budget              → UNKNOWN bleibt UNKNOWN, RC 0
+python3 scripts/muscal.py run "..." --dry-run     → Kette ok, RC 0
+python3 scripts/muscal.py serve (Thread-Test)     → /health, /pipelines, /guard, POST /run OK
+python3 scripts/check_docs.py                    → OK
+python3 scripts/run_all_tests.py --check-state    → Keine Abweichung, RC 0
+python3 scripts/run_all_tests.py                  → 7 PASS, 12 NOT EXECUTED, 0 FAIL
+```
+
+### Befunde
+
+- Zum Zeitpunkt des Eintrags verbindlich: **307 Testfunktionen in 19 Suiten**; `--check-state`
+  gleicht Runner und SSOT maschinell ab.
+- Acht Suiten brauchen weiterhin Backend, Modelle, GPU, Mikrofon oder
+  espeak-ng; vier weitere brauchen nur die Python-Abhängigkeiten. Ohne diese
+  Pakete meldet der vollständige Sandbox-Lauf 7 PASS, 12 NOT EXECUTED, 0 FAIL.
+  Kein Test aus einer NOT-EXECUTED-Suite wurde als bestanden gezählt.
+- `evals/golden.json` und `config/roles.yaml` sind generiert; ihre Quellen
+  können nicht mehr unbemerkt auseinanderlaufen.
+- MUSCAL bleibt CLI/HTTP, kein Desktop-Adapter. `prohibitions`,
+  `current.hard_stop: true` und `next_authorized_phase: NONE` sind unverändert.
+
+### Offen
+
+- **P0** — Voice-Turn-Nachmessung auf der Referenzmaschine.
+- **Live-Abnahme** — `eval.py --live/--compare`, `modelsctl.py
+  switch/start/stop`, `muscal.py --live`, HTTP ohne `dry_run`, echte
+  VRAM-Belegung und alle GPU-Latenzen. Implementiert, aber ohne Hardware
+  nicht gemessen.
+
+## 2026-11-13 — Abschluss-Sweep: Historie wiederhergestellt, Dokumentenabdeckung erweitert
+
+### Ausgangslage
+
+Zu Beginn dieses Arbeitsabschnitts zeigte der lokale Zweig nur den
+Basis-Commit `4b3762b`, obwohl `origin/arena/f82209dd-guialita` bereits auf
+`12afaed` stand. Alle Dateiänderungen lagen als Arbeitsbaum vor.
+
+### Prüfung statt Überschreiben
+
+- `git fetch origin arena/f82209dd-guialita` → `FETCH_HEAD = 12afaed`.
+- `git add -A && git write-tree` → `7536723c10d4e7f739e85b7b45a42b5832d495ce`.
+- `git rev-parse FETCH_HEAD^{tree}` → derselbe Hash. **Der Arbeitsbaum war
+  bitgleich mit dem gepushten Commit.** Erst danach wurde der lokale Zweig per
+  `git reset --hard FETCH_HEAD` wieder auf `12afaed` gesetzt und das Tracking
+  auf `origin/arena/f82209dd-guialita` gestellt. Keine Datei ging verloren.
+
+### Änderungen
+
+- `scripts/check_docs.py` prüft jetzt **13** aktuelle Dokumente statt 7:
+  zusätzlich `README.md`, `docs/SINGLE_SOURCE_OF_TRUTH.md`,
+  `docs/GUIALITA_PHASE_STATUS.md`, `docs/LFM25_AUDIO_AUDIT.md`,
+  `docs/LFM25_AUDIO_AUDIT_V2.md` und `PROTOTYPEN/README.md`. Für jedes sind
+  Pflichtformulierungen hinterlegt; die alte README-Testvoraussetzung und die
+  alte Phasenplan-Überschrift werden als veraltete Aktualitätsbehauptungen
+  abgelehnt (Muster stehen in `scripts/check_docs.py`).
+- `docs/LFM25_AUDIO_AUDIT.md` und `..._V2.md` haben einen Kopf
+  „Historischer Beleg (2026-08-19)". Ihre Aussagen „NICHT IMPLEMENTIERT"
+  bleiben unverändert und sind jetzt zeitlich eingeordnet — keine stillschweigende
+  Korrektur forensischer Berichte.
+- `config/roles.json`: Coder-Prompt „unrelated Stellen" → „unbeteiligter
+  Stellen"; `config/roles.yaml` neu generiert.
+- `docs/adr/ADR-002-agent-orchestration.md`: Umbruch und Anführungszeichen im
+  Umsetzungsstand korrigiert.
+- `tests/test_doc_consistency.py`: bestehende fünf Tests prüfen die neue
+  Abdeckung mit, ohne die Gesamtzahl zu verändern.
+
+### Läufe (Sandbox)
+
+```text
+python3 -m compileall -q backend scripts tests        → RC 0
+python3 scripts/run_all_tests.py --check-state         → Keine Abweichung (307/19)
+python3 scripts/check_docs.py                         → OK, 13 Dokumente
+python3 scripts/build_golden.py --check                → OK
+python3 scripts/build_roles.py --check                 → OK
+python3 scripts/roles.py validate --check-mirror       → OK
+python3 scripts/eval.py --dry-run                     → 19/19 Urteile wie erwartet
+python3 scripts/eval.py --dry-run --all-suites         → 4/4 OK
+python3 scripts/run_all_tests.py --only <7 Suiten>    → 7 PASS, 0 FAIL
+python3 scripts/muscal.py serve --host 0.0.0.0 --port 8099 (Live Preview):
+  GET  /health          → 200 {"status":"ok","backend":"stub"}
+  GET  /pipelines       → 200, 4 Rollen, 2 Ketten
+  GET  /guard?path=/etc/passwd → 200 {"allowed":false,...}
+  POST /run             → 200, ['ok','ok','ok','ok'], warnings []
+  POST /run ohne task   → 400 {"error":"Feld 'task' fehlt oder ist leer"}
+```
+
+### Offen
+
+Unverändert: P0, alle Live-/GPU-Messungen, `current.hard_stop: true`,
+`next_authorized_phase: NONE`, `prohibitions`. Die Live Preview nutzt den
+Stub und ist **kein** Modellnachweis.
+
+## 2026-11-13 — Live-Contract gegen das echte Backend-Schema geprüft
+
+### Ausgangslage
+
+Die Live-Pfade von `eval.py`, `modelsctl.py` und `muscal.py` waren bisher nur
+kompiliert und im Trockenlauf geprüft. Ohne Backend blieb unbelegt, ob ihre
+Requests und Response-Parser zum tatsächlichen Vertrag in
+`backend/models/schemas.py` und `backend/manager.py` passen.
+
+### Prüfung des Vertrags
+
+- `ChatRequest` verlangt nur `message`; `model` und `session_id` sind optional.
+  Alle drei Clients senden genau diese Form — kein 422-Risiko.
+- `ChatResponse` liefert `status`, `response`, `model`, `latency_ms`. Die Clients
+  lesen `response` und `latency_ms`; `ErrorResponse` trägt `status: "error"`.
+- `GET /models` liefert `available` = **Datei vorhanden**, nicht „im VRAM
+  geladen". `modelsctl.py` behauptete an zwei Stellen einen Ladezustand. Fix:
+  `--loaded A,B` für `plan`/`switch`, sonst ausdrücklich „UNBEKANNT" mit
+  genannter Annahme; `status` weist auf die Bedeutung von `available` hin.
+- `modelsctl.py start` meldete Erfolg, sobald `/health` antwortete — auch bei
+  `primary_runtime.status: offline`. Jetzt Exitcode 1 mit klarer Begründung.
+- `eval.py` und `muscal.py` behandelten eine 200-Antwort mit `status: "error"`
+  als leere Modellantwort. Beide werfen jetzt einen benannten Fehler.
+
+### Neuer Selbsttest
+
+`scripts/contract_check.py` startet ein Fake-Backend auf `127.0.0.1:0`, das
+`/health`, `/models` und `POST /chat` mit den echten Feldern bedient. Geprüft
+werden Request-Aufbau, Rollenprompt, `--model`-Override, `eval.run_live`,
+`muscal.run_pipeline`, `modelsctl status/health/plan/switch`, Fehlerantworten,
+404 bei unbekanntem Modell und die offline-Runtime bei `start`.
+
+```text
+python3 scripts/contract_check.py → OK, RC 0
+  ChatRequest/ChatResponse, /health, /models, /chat
+  Clients: eval.py, modelsctl.py, muscal.py
+  Fake-Modelle: granite-3b, granite-8b, lfm-vision-3b
+```
+
+Die Werte des Fake-Backends (`latency_ms: 12.5`) sind synthetisch. Der Lauf
+belegt die **Vertragsform**, keine Inferenz, keine VRAM-Belegung, keine echte
+Wechselzeit.
+
+### Weitere Prüfungen
+
+```text
+python3 -m compileall -q backend scripts tests        → RC 0
+python3 scripts/run_all_tests.py --check-state         → Keine Abweichung (307/19)
+python3 scripts/check_docs.py                         → OK, 13 Dokumente
+python3 scripts/build_golden.py --check                → OK
+python3 scripts/build_roles.py --check                 → OK
+python3 scripts/roles.py validate --check-mirror       → OK
+python3 scripts/eval.py --dry-run                     → 19/19
+python3 scripts/run_all_tests.py --only <7 Suiten>    → 7 PASS, 0 FAIL
+```
+
+Die drei betroffenen Testsuiten wurden um Zusatzsprüche erweitert, **ohne neue
+Testfunktionen**: 25/33/26 Tests, Gesamtzahl blieb 307/19.
+
+### Offen
+
+Unverändert: P0, Live-Inferenz, echte VRAM-/Latenzmessung,
+`current.hard_stop: true`, `next_authorized_phase: NONE`, `prohibitions`.
+
+## Externe CI-Gegenprobe und `main`-Abgleich (2026-11-13)
+
+Ziel: nach dem lokalen Abschluss nicht erneut Zahlen behaupten, sondern den
+Remote-Zustand und die Integrationsfähigkeit prüfen. Keine Codeänderung an den
+Werkzeugen.
+
+### Evidenz
+
+```text
+gh run view 43621040654                       → completed / success, event push
+  Job „Inventar, Werkzeuge ↔ SSOT"           → 16/16 Schritte success,
+  davon 10 Prüfschritte (u. a. Standardbibliothek-Suiten, Golden Set,
+  Rollen-YAML, Registry, Eval, VRAM-Budget, MUSCAL-Trockenlauf,
+  Live-Contract, check_docs.py), 6 Setup-/Post-/Abschlussschritte
+gh run list --branch arena/f82209dd-guialita → 6 × success (Snapshot)
+  43408033608 (7b6ca86), 43425145999 (12afaed),
+  43618536071 (03c0522), 43621040654 (9b0e498),
+  43622338506 (005755b), 43622915315 (56e3597)
+gh pr list --state all                       → kein PR für diesen Branch
+gh api .../workflows/state-consistency.yml   → State Consistency | active
+```
+
+### Befund: `main` ist nicht mehr die Basis
+
+`git fetch origin main` liefert `7caea0e` (Merge PR #4). Seit `4b3762b` sind
+dort fünf Commits mit Mock-Test-Adapter, `scripts/local_update.sh` und
+`AGENTS.md` dazugekommen. Deren SSOT nennt **145 Testfunktionen in 9 Suiten**;
+`tests/test_api.py` hat dort 27 statt 23 Testfunktionen.
+
+```text
+git merge-base HEAD FETCH_HEAD               → 4b3762b
+git merge-tree --write-tree HEAD FETCH_HEAD  → RC 1, 4 Konflikte
+  README.md, docs/GUIALITA_STATE.yaml,
+  docs/HEARTBEAT.md, docs/SESSION_LOG.md
+Auto-Merging (beidseitig geändert): .gitignore, scripts/run_all_tests.py
+```
+
+Ein Merge ergäbe rechnerisch **311 Testfunktionen in 19 Suiten** — also weder
+307/19 noch 145/9. Ohne gemeinsame Neubaseline wäre `--check-state` danach
+nicht mehr belastbar. Details und Fahrplan: `docs/INTEGRATION_STATUS.md`.
+
+### Fortschreibung nach Freigabe
+
+Dieser Befund blieb als Ausgangslage stehen. Nach ausdrücklicher Freigabe
+wurde `origin/main@7caea0e` in diesen Branch integriert; siehe den Eintrag
+„Integration von `origin/main`" weiter unten. `current.hard_stop: true`,
+`next_authorized_phase: NONE` und `prohibitions` blieben unverändert. Die
+externen CI-Läufe belegen nur diesen Branch — keine Inferenz, kein VRAM,
+keine Hardware- oder Modellabnahme.
+
+---
+
+## Historische Belege aus `main` (Sessions `arena/ba3bbc69` und `arena/180fbd4a`)
+
+Die folgenden Abschnitte stammen aus `origin/main@7caea0e`. Ihre Zahlen
+(145 Testfunktionen in 9 Suiten, 6 PASS / 3 NOT_EXECUTED, `test_api.py`
+23 → 27) beschreiben den Stand jener Session und sind **kein aktueller
+Status**. Maßgeblich ist `docs/GUIALITA_STATE.yaml` mit **311 Testfunktionen
+in 19 Suiten**.
+
 ## 2026-11-13 — Lokales Update + Verifikation (Mock-Adapter, local_update.sh, AGENTS.md)
 
 **Auftrag:** komplettes lokales Update über einen OpenCode-Anweisungsprompt, so
@@ -482,6 +842,91 @@ scripts/run_all_tests.py (GUIALITA_MOCK_LLM=1):
 - `next_authorized_phase: NONE` und `hard_stop: true` in `docs/GUIALITA_STATE.yaml`
   bleiben unverändert bestehen; `docs/INTEGRITY_MARKER.txt` und alle
   `docs/PHASE_*`-Berichte bleiben unangetastet.
+
+---
+
+## 2026-11-13 — Integration von `origin/main` (freigegeben)
+
+**Freigabe:** ausdrücklich für Merge, gemeinsame Neubaseline und PR. Nicht
+enthalten: Änderung von `hard_stop`, `prohibitions`,
+`next_authorized_phase`, Hardware- oder Live-Abnahme.
+
+### Vorgehen
+
+```text
+git fetch origin main                         → 7caea0e (Merge PR #4)
+git merge --no-commit --no-ff FETCH_HEAD      → 4 Konflikte
+  README.md, docs/GUIALITA_STATE.yaml,
+  docs/HEARTBEAT.md, docs/SESSION_LOG.md
+Auto-Merge (beidseitig geändert): .gitignore, scripts/run_all_tests.py
+```
+
+### Zusammengeführt
+
+- Aus `main`: `AGENTS.md`, `scripts/local_update.sh`,
+  `backend/adapters/mock_adapter.py`, Diagnose-/Audit-Korrekturen,
+  Mock-Klassifizierung `PASS (mock)` im Runner, Reproduzierbarkeitsregel.
+- Aus diesem Branch: AST-Zählung, `deps`-Fähigkeit, 19 Suiten,
+  `--check-state`, ADR-002-Werkzeuge, `contract_check.py`, 13 geprüfte
+  Dokumente.
+- `scripts/run_all_tests.py` trägt jetzt **beides**: 19 Suiten mit
+  `satisfied()`/`MOCK_SATISFIES` und `--check-state`. Kein Textkonflikt,
+  aber bewusst nachgeprüft.
+- `docs/SESSION_LOG.md` und `docs/HEARTBEAT.md` führen beide Session-Reihen;
+  historische Zahlen (145/9, 307/19) wurden nicht umgeschrieben.
+
+### Neue Baseline
+
+| | vor der Integration | nach der Integration |
+|---|---|---|
+| `test_api.py` | 23 | **27** |
+| Gesamt | 307 / 19 | **311 Testfunktionen in 19 Suiten** |
+
+`ci_capable` in der SSOT ist jetzt `partial`: sieben Suiten laufen in CI,
+zwölf bleiben in der nackten Sandbox NOT_EXECUTED. Der Mock-Adapter ergänzt
+`PASS (mock)`, ersetzt aber keine Runtime-Abnahme.
+
+### Evidenz
+
+```text
+python3 scripts/run_all_tests.py --check-state  → Keine Abweichung (311/19)
+python3 scripts/check_docs.py                  → OK über 13 Dokumente
+python3 scripts/contract_check.py              → OK
+python3 scripts/run_all_tests.py --only <7>   → 7 PASS, 0 FAIL
+python3 scripts/run_all_tests.py              → 7 PASS, 12 NOT EXECUTED, 0 FAIL
+python3 -m compileall -q backend scripts tests → RC 0
+git diff --check                              → RC 0
+```
+
+Alle Zahlen in SSOT, Regression Contract, Bootstrap, ADR-002, Heartbeat,
+README und `tests/test_doc_consistency.py` sind auf 311/19 nachgezogen.
+`current.hard_stop: true`, `next_authorized_phase: NONE`, sieben
+`prohibitions` und `future_target: PLANNED` sind unverändert.
+
+### PR #5
+
+```text
+gh pr create --base main --head arena/f82209dd-guialita
+  → https://github.com/INDIEaner84/GUIALITA/pull/5 (eröffnet)
+gh pr view 5 → mergeable: MERGEABLE, mergeStateStatus: UNSTABLE (bei Erstellung)
+git merge-tree --write-tree origin/main HEAD → RC 0, keine Konflikte
+gh run view 43626009032 (push)         → success, 16/16 Schritte
+gh run view 43626127557 (pull_request) → success, 16/16 Schritte
+gh run view 43626127593 (Auto PR Review) → failure, Job „review"
+```
+
+Der rote `review`-Check stammt aus dem vorbestehenden Workflow
+`.github/workflows/audit-pr.yml` (externe OpenCode/OpenRouter-Action). Er ist
+auf PR #3 und PR #4 identisch fehlgeschlagen; beide wurden gemergt. Er ist
+damit kein Regression dieses Merges. Der Workflow wurde nicht verändert —
+das wäre eine eigene Freigabe. Der PR wurde geöffnet; die Übernahme nach
+`main` erfolgt als eigener, ausdrücklich freigegebener Schritt.
+
+### Nicht belegt
+
+Keine Inferenz, kein Modell, keine GPU, kein VRAM, keine echte Latenz,
+kein STT/TTS, keine Audio-Abnahme. `contract_check.py` bleibt ein
+Vertragsnachweis mit synthetischen Werten. Live-Abnahme bleibt offen.
 
 ## Nachvollziehbarkeitsregel
 

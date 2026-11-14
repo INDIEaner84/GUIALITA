@@ -1,40 +1,47 @@
 # GUIALITA — Milestone Heartbeat
 
 Sachliche Fortschrittsansicht. Verbindliche Quelle ist `GUIALITA_STATE.yaml`.
-Aktualisiert nach jedem abgeschlossenen autonomen
-Arbeitsabschnitt; keine internen Gedankengänge, nur Status, Evidenz und nächste
-Schritte.
+Aktualisiert nach jedem abgeschlossenen autonomen Arbeitsabschnitt; keine
+internen Gedankengänge, nur Status, Evidenz und nächste Schritte.
+Zuletzt fortgeschrieben: 2026-11-13.
 
-## Aktueller Status — 2026-11-13
+## Aktueller Stand — 2026-11-13 (Kurzfassung)
 
-**Abschnitt:** Lokales Update + Verifikation (Agent-Anweisung `AGENTS.md`)
+- **311 Testfunktionen in 19 Suiten**; `run_all_tests.py --check-state`
+  meldet keine Abweichung. `origin/main@7caea0e` ist integriert: Mock-Test-
+  Adapter, `scripts/local_update.sh` und `AGENTS.md` sind übernommen, ohne die
+  AST-Zählung oder eine der 19 Suiten zu verlieren.
+- Vollständiger Sandbox-Lauf ohne Mock: **7 PASS, 12 NOT EXECUTED, 0 FAIL**.
+  Kein Test aus einer `NOT_EXECUTED`-Suite wurde als bestanden gezählt.
+  Mit `GUIALITA_MOCK_LLM=1` werden zusätzliche Chat-, Memory- und API-Pfade
+  als `PASS (mock)` ausgewiesen — das ist keine Runtime-Abnahme.
+- ADR-002 P3–P6: Eval-Harness, VRAM-Budget/Lifecycle, Rollen-Registry und
+  MUSCAL CLI/HTTP sind als Selbsttests im Trockenlauf geprüft.
+  `scripts/contract_check.py` belegt zusätzlich die Live-Clients gegen das
+  echte HTTP-Schema. Live-Pfade, echte VRAM-Messung und Hardware-Latenzen sind
+  **nicht abgenommen**.
+- **P0** (Voice-Turn-Nachmessung) bleibt offen; `current.hard_stop: true`,
+  `next_authorized_phase: NONE` und `prohibitions` sind unverändert.
+- MUSCAL bleibt CLI/HTTP, kein Desktop-Adapter, keine parallelen Agenten.
+- Extern geprüft: `gh run view 43621040654` → `success`, 16/16 Schritte des
+  Workflows `State Consistency` grün (10 Prüfschritte); alle folgenden
+  Push-Läufe auf diesem Branch ebenfalls grün, auf dem Merge-Commit
+  `54c521d` zusätzlich der Pull-Request-Run `43626127557`. **PR #5** wurde
+  zur Übernahme nach `main` eröffnet (bei Erstellung `MERGEABLE`); der
+  vorbestehende externe `Auto PR Review`-Check ist wie schon bei PR #3/#4 rot
+  (`UNSTABLE`), kein Regression. Details und Verlauf:
+  `docs/INTEGRATION_STATUS.md`.
+- Aus `main` übernommen: `AGENTS.md`, `scripts/local_update.sh`,
+  `backend/adapters/mock_adapter.py`, Diagnose-/Audit-Korrekturen und die
+  Reproduzierbarkeitsregel. Details der `main`-Sessions stehen in `docs/SESSION_LOG.md` als
+  historische Belege; maßgeblich bleibt `docs/GUIALITA_STATE.yaml`.
 
-| Bereich | Status |
-|---|---|
-| Agent-Anweisungsprompt | implementiert: `AGENTS.md` (OpenCode lädt sie automatisch) |
-| Update + Verifikation in einem Schritt | implementiert: `scripts/local_update.sh [--mock]` |
-| Test-Adapter ohne Modell/GPU | implementiert: `backend/adapters/mock_adapter.py`, `GUIALITA_MOCK_LLM=1` |
-| Testbestand | 145 Funktionen in 9 Suiten (`test_api.py` 23 → 27) |
-| Testlauf Sandbox (mit Mock) | **6 PASS · 0 FAIL · 3 NOT_EXECUTED** — 108 bestanden, 16 skip, Exit 0 |
-| Unit-Schicht `scripts/test.py` | PASS — 46 Tests |
-| Backend-Start/Stop | PASS — `/health` online, `lifespan` statt deprecatedem `on_event` |
-| API-Vertrag (400/404/415/500) | geprüft über Rauchprobe und `test_api.py` |
-| Memory-Status-Korrektur | `embedding_version: 1` (war fälschlich 512) + `embedding_dimensions: 512` |
-| Audit-Ablage | folgt jetzt `GUIALITA_DATA_ROOT`; `data/*.jsonl` ignoriert |
-| Echte LLM-/STT-/TTS-Runtime | **nicht nachgewiesen** — keine Modelle, kein whisper.cpp, kein LFM-Audio |
-| Voice-Turn-Neuvermessung (Gate) | weiter OPEN — braucht Zielhardware |
-| `main`-Abgleich | keine neuen Commits auf `origin/main`; Merge Konflikt-frei (fast-forward) |
-| Umgebungs-Wiederherstellung | Branch-Zeiger verlustfrei auf `5e68392` zurückgesetzt, `.venv` neu gebaut |
-| Reproduzierbarkeitsregel | dokumentiert: gitignored-Pfade neu aufbauen, Verifikation neu ausführen |
-| Vorschau-Tauglichkeit | geprüft: fremder `Host` → 200, CORS `*`, Frontend nur relative Pfade |
-| Session-Abschluss | archiviert; Überführung nach `main` per PR (durch Nutzer autorisiert) |
-| Folge-Session `arena/180fbd4a-guialita` | Fast-Forward auf `1bee303`, GUI + 3 Prototypen in Vorschau geprüft, `scripts/test.py` Overall-Ausgabe gehärtet, 6 PASS / 0 FAIL / 3 NOT_EXECUTED bestätigt |
+## Historischer Status — 2026-08-22 (nicht maßgeblich)
 
-Mock-Läufe werden als `PASS (mock)` ausgewiesen: Sie beweisen Chat-, Memory-,
-Audit- und API-Pfad, **nicht** Inferenz, GPU, STT oder TTS.
-Details und vollständige Evidenz: `docs/SESSION_LOG.md` (2026-11-13).
-
-## Status — 2026-08-22 (vorangegangener Abschnitt)
+Dieser Abschnitt ist der damalige Heartbeat. Die Zahlen 39/46, die Angabe
+`scripts/test.py` als „Layered Test Runner" und die offenen M4/M5-Punkte sind
+historisch und wurden inzwischen über `scripts/run_all_tests.py`, die SSOT und
+`docs/SESSION_LOG.md` ersetzt.
 
 **Milestone:** M5 — Performance-Baseline
 
@@ -84,7 +91,10 @@ Details und vollständige Evidenz: `docs/SESSION_LOG.md` (2026-11-13).
 - portable Pfadauflösung für Modelle und Whisper ergänzt
 - isolierte Tests bleiben erfolgreich
 
-## Nächste Milestones
+## Historische Milestone-Planung (2026-08-22)
+
+M4 und M5 sind in `docs/GUIALITA_STATE.yaml` inzwischen als PASS geführt. Die
+folgende Liste bleibt als Planungsbeleg stehen, nicht als aktuelle Aufgabenliste.
 
 ### M4 — Testharness
 

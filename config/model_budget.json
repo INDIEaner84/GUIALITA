@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "note": [
+    "VRAM-Planungsgrundlage fuer scripts/modelsctl.py (ADR-002, D3).",
+    "",
+    "Warum deklarierte Groessen und nicht gerechnete: Die tatsaechliche",
+    "Belegung haengt an KV-Cache, Kontextlaenge, Offloading und der",
+    "CUDA-Version. Eine scheinpraezise Rechnung waere hier schlimmer als eine",
+    "ehrliche Schaetzung — sie sieht belastbar aus und ist es nicht.",
+    "",
+    "Deshalb: Gewichte (deklariert oder live gemessen) + deklarierter",
+    "Overhead + deklarierte Reserve. Der KV-Cache steckt in der Reserve.",
+    "Wer es genauer braucht, misst mit nvidia-smi — modelsctl.py liest den",
+    "freien Speicher, wenn nvidia-smi vorhanden ist."
+  ],
+  "gpu": {
+    "name": "NVIDIA GeForce GTX 1080 Ti",
+    "total_gb": 11.0,
+    "source": "docs/GUIALITA_STATE.yaml, environment.gpu"
+  },
+  "overhead_gb": 0.8,
+  "kv_reserve_gb": 1.0,
+  "models": {
+    "granite-3b": {
+      "weights_gb": 2.1,
+      "measured": true,
+      "source": "docs/PHASE_0_BASELINE.md (granite-4.1-3b-Q4_K_M)"
+    },
+    "granite-8b": {
+      "weights_gb": 5.35,
+      "measured": true,
+      "source": "docs/PHASE_0_BASELINE.md (granite-4.1-8b-Q4_K_M)"
+    },
+    "lfm-agent-8b": {
+      "weights_gb": 5.16,
+      "measured": true,
+      "source": "docs/PHASE_0_BASELINE.md (LFM2.5-8B-A1B-Q4_K_M)"
+    },
+    "lfm-audio-1.5b": {
+      "weights_gb": null,
+      "measured": false,
+      "source": "nicht im Repository dokumentiert — mit --live messen"
+    },
+    "lfm-vision-3b": {
+      "weights_gb": null,
+      "measured": false,
+      "source": "nicht im Repository dokumentiert — mit --live messen"
+    },
+    "lfm-vision-1.6b": {
+      "weights_gb": null,
+      "measured": false,
+      "source": "nicht im Repository dokumentiert — mit --live messen"
+    }
+  }
+}

@@ -1,0 +1,88 @@
+# GUIALITA — Rollen-Registry, lesbare Spiegelung von config/roles.json
+#
+# GENERIERT. Nicht von Hand editieren.
+# Quelle: config/roles.json
+# Prüfung: python3 scripts/build_roles.py --check
+# ADR: docs/adr/ADR-002-agent-orchestration.md, Entscheidung D2
+#
+generated_by: "scripts/build_roles.py"
+source: "config/roles.json"
+schema: 2
+yaml_mirror: "config/roles.yaml"
+do_not_edit:
+  - "Diese Datei ist generiert. config/roles.json aendern und"
+  - "python3 scripts/build_roles.py --write ausfuehren."
+note:
+  - "Rollen sind Konfiguration, nicht Gewichte (ADR-002, D2)."
+  - "Eine Rolle ist ein Datensatz aus Prompt, Tool-Allowlist, Modell, Limits"
+  - "und Eval-Suite. Wer eine Rolle aendern will, aendert hier eine Zeile und"
+  - "laesst ihre Eval-Suite laufen — nicht ein Modell neu trainieren."
+  - ""
+  - "config/roles.json ist die maschinelle Quelle, config/roles.yaml die"
+  - "generierte, lesbare Spiegelung (ADR-002 D2 verlangt eine versionierte"
+  - "YAML-Datei). Beide werden von scripts/build_roles.py --check abgeglichen."
+  - ""
+  - "Bewusst zusaetzlich JSON: die Werkzeuge scripts/roles.py, scripts/eval.py"
+  - "und scripts/muscal.py laufen ohne PyYAML, damit sie in einer nackten"
+  - "Umgebung und in CI pruefbar bleiben."
+tools:
+  read_file:
+    mutating: false
+    description: "Datei lesen"
+  list_dir:
+    mutating: false
+    description: "Verzeichnis listen"
+  search:
+    mutating: false
+    description: "Im Repository suchen (Text)"
+  run_tests:
+    mutating: false
+    description: "Testrunner starten, nur lesend"
+  write_file:
+    mutating: true
+    description: "Datei schreiben oder aendern"
+roles:
+  router:
+    description: "Klassifiziert die Anfrage. Antwortet nur mit einem Label."
+    model: "granite-3b"
+    prompt: "Du klassifizierst eine Anfrage. Antworte ausschliesslich mit genau einem dieser Labels: chat, code, audit, plan. Keine Erklaerung, kein Satz, nur das Label."
+    output_schema: "label"
+    eval: "evals/roles/router.json"
+    tools: []
+    timeout_ms: 10000
+    max_tokens: 8
+    requires_approval: false
+    eval_roles: ["router"]
+  planner:
+    description: "Zerlegt eine Aufgabe in pruefbare Schritte. Aendert nichts."
+    model: "granite-3b"
+    prompt: "Zerlege die Aufgabe in hoechstens fuenf pruefbare Schritte. Jeder Schritt muss ein Ergebnis haben, das man nachsehen kann. Antworte als nummerierte Liste."
+    output_schema: "plan"
+    eval: "evals/roles/planner.json"
+    tools: ["read_file", "list_dir", "search"]
+    timeout_ms: 30000
+    max_tokens: 512
+    requires_approval: false
+    eval_roles: ["planner"]
+  coder:
+    description: "Aendert Code minimal-invasiv und erklaert die Differenz."
+    model: "granite-8b"
+    prompt: "Aendere den Code minimal-invasiv. Erklaere vor der Aenderung, welche Zeilen betroffen sind und warum. Keine Umformatierung unbeteiligter Stellen."
+    output_schema: "diff"
+    eval: "evals/roles/coder.json"
+    tools: ["read_file", "write_file", "run_tests"]
+    timeout_ms: 180000
+    max_tokens: 1024
+    requires_approval: true
+    eval_roles: ["coder"]
+  auditor:
+    description: "Prueft gegen den Regression Contract. Hat bewusst kein Schreibrecht."
+    model: "granite-3b"
+    prompt: "Pruefe die Arbeit gegen den Regression Contract (docs/BASELINES/REGRESSION_CONTRACT.md). Du aenderst nichts. Antworte als JSON mit den Schluesseln verdict (pass/fail), evidence (Liste) und risks (Liste)."
+    output_schema: "report"
+    eval: "evals/roles/auditor.json"
+    tools: ["read_file", "run_tests", "search"]
+    timeout_ms: 180000
+    max_tokens: 512
+    requires_approval: false
+    eval_roles: ["auditor"]

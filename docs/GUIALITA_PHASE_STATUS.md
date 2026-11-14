@@ -37,4 +37,5 @@ korrigiert.
 ## Architekturentscheidungen
 
 `docs/adr/` — beginnend mit
-[ADR-001: whisper.cpp als STT-Runtime](adr/ADR-001-stt-whisper-cpp.md).
+[ADR-001: whisper.cpp als STT-Runtime](adr/ADR-001-stt-whisper-cpp.md) und
+[ADR-002: Agenten-Orchestrierung](adr/ADR-002-agent-orchestration.md).
