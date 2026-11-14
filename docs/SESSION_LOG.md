@@ -337,6 +337,69 @@ python3 scripts/run_all_tests.py                  → 7 PASS, 12 NOT EXECUTED, 0
   VRAM-Belegung und alle GPU-Latenzen. Implementiert, aber ohne Hardware
   nicht gemessen.
 
+## 2026-11-13 — Abschluss-Sweep: Historie wiederhergestellt, Dokumentenabdeckung erweitert
+
+### Ausgangslage
+
+Zu Beginn dieses Arbeitsabschnitts zeigte der lokale Zweig nur den
+Basis-Commit `4b3762b`, obwohl `origin/arena/f82209dd-guialita` bereits auf
+`12afaed` stand. Alle Dateiänderungen lagen als Arbeitsbaum vor.
+
+### Prüfung statt Überschreiben
+
+- `git fetch origin arena/f82209dd-guialita` → `FETCH_HEAD = 12afaed`.
+- `git add -A && git write-tree` → `7536723c10d4e7f739e85b7b45a42b5832d495ce`.
+- `git rev-parse FETCH_HEAD^{tree}` → derselbe Hash. **Der Arbeitsbaum war
+  bitgleich mit dem gepushten Commit.** Erst danach wurde der lokale Zweig per
+  `git reset --hard FETCH_HEAD` wieder auf `12afaed` gesetzt und das Tracking
+  auf `origin/arena/f82209dd-guialita` gestellt. Keine Datei ging verloren.
+
+### Änderungen
+
+- `scripts/check_docs.py` prüft jetzt **13** aktuelle Dokumente statt 7:
+  zusätzlich `README.md`, `docs/SINGLE_SOURCE_OF_TRUTH.md`,
+  `docs/GUIALITA_PHASE_STATUS.md`, `docs/LFM25_AUDIO_AUDIT.md`,
+  `docs/LFM25_AUDIO_AUDIT_V2.md` und `PROTOTYPEN/README.md`. Für jedes sind
+  Pflichtformulierungen hinterlegt; die alte README-Testvoraussetzung und die
+  alte Phasenplan-Überschrift werden als veraltete Aktualitätsbehauptungen
+  abgelehnt (Muster stehen in `scripts/check_docs.py`).
+- `docs/LFM25_AUDIO_AUDIT.md` und `..._V2.md` haben einen Kopf
+  „Historischer Beleg (2026-08-19)". Ihre Aussagen „NICHT IMPLEMENTIERT"
+  bleiben unverändert und sind jetzt zeitlich eingeordnet — keine stillschweigende
+  Korrektur forensischer Berichte.
+- `config/roles.json`: Coder-Prompt „unrelated Stellen" → „unbeteiligter
+  Stellen"; `config/roles.yaml` neu generiert.
+- `docs/adr/ADR-002-agent-orchestration.md`: Umbruch und Anführungszeichen im
+  Umsetzungsstand korrigiert.
+- `tests/test_doc_consistency.py`: bestehende fünf Tests prüfen die neue
+  Abdeckung mit, ohne die Gesamtzahl zu verändern.
+
+### Läufe (Sandbox)
+
+```text
+python3 -m compileall -q backend scripts tests        → RC 0
+python3 scripts/run_all_tests.py --check-state         → Keine Abweichung (307/19)
+python3 scripts/check_docs.py                         → OK, 13 Dokumente
+python3 scripts/build_golden.py --check                → OK
+python3 scripts/build_roles.py --check                 → OK
+python3 scripts/roles.py validate --check-mirror       → OK
+python3 scripts/eval.py --dry-run                     → 19/19 Urteile wie erwartet
+python3 scripts/eval.py --dry-run --all-suites         → 4/4 OK
+python3 scripts/run_all_tests.py --only <7 Suiten>    → 7 PASS, 0 FAIL
+python3 scripts/muscal.py serve --host 0.0.0.0 --port 8099 (Live Preview):
+  GET  /health          → 200 {"status":"ok","backend":"stub"}
+  GET  /pipelines       → 200, 4 Rollen, 2 Ketten
+  GET  /guard?path=/etc/passwd → 200 {"allowed":false,...}
+  POST /run             → 200, ['ok','ok','ok','ok'], warnings []
+  POST /run ohne task   → 400 {"error":"Feld 'task' fehlt oder ist leer"}
+```
+
+### Offen
+
+Unverändert: P0, alle Live-/GPU-Messungen, `current.hard_stop: true`,
+`next_authorized_phase: NONE`, `prohibitions`. Die Live Preview nutzt den
+Stub und ist **kein** Modellnachweis.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.

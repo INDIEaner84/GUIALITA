@@ -306,11 +306,11 @@ Kette von Ladezeiten wäre.
 ## 5a. Umsetzungsstand (Änderungshistorie, keine Statusangabe)
 
 Der Phasenstatus steht ausschließlich in `docs/GUIALITA_STATE.yaml`. Hier nur,
-was seit dem Entwurf tatsächlich am Code passiert ist. P3–P6 als CLI/HTTP-Werkzeuge umgesetzt
-heißt ausdrücklich nicht, dass eine produktive
-Orchestrierungsschicht, ein Desktop-Adapter oder parallele Agenten freigegeben
-wären. `current.hard_stop`, `next_authorized_phase: NONE` und `prohibitions`
-sind unverändert.
+was seit dem Entwurf tatsächlich am Code passiert ist.
+**P3–P6 als CLI/HTTP-Werkzeuge umgesetzt** heißt ausdrücklich nicht, dass eine
+produktive Orchestrierungsschicht, ein Desktop-Adapter oder parallele Agenten
+freigegeben wären. `current.hard_stop`, `next_authorized_phase: NONE` und
+`prohibitions` sind unverändert.
 
 - **P1 umgesetzt (2026-11-13).** `count_test_functions` in
   `scripts/run_all_tests.py` nutzt `ast` statt der Regex `\s+def test`. Damit
@@ -342,8 +342,8 @@ sind unverändert.
   Sandbox existiert diese Messung nicht. `tests/test_modelsctl.py` mit 25 Tests.
 - **P5 umgesetzt (2026-11-13).** `config/roles.json` plus generiertes
   `config/roles.yaml`, vier Rollen, vier Rollen-Evals. `scripts/roles.py`
-  erzwingt u. a. „Auditor schreibt nicht", „mutierendes Tool braucht
-  Freigabe" und prüft den YAML-Mirror. `roles.py switch router planner`
+  erzwingt u. a. „Auditor schreibt nicht“, „mutierendes Tool braucht
+  Freigabe“ und prüft den YAML-Mirror. `roles.py switch router planner`
   weist den Wechsel **ohne Modellwechsel** nach (D3). `tests/test_roles.py`
   mit 27 Tests.
 - **P6 umgesetzt (2026-11-13).** `scripts/muscal.py` führt eine sequenzielle

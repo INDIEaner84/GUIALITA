@@ -36,6 +36,12 @@ CURRENT_FILES = (
     "docs/adr/ADR-002-agent-orchestration.md",
     "docs/SESSION_LOG.md",
     "docs/HEARTBEAT.md",
+    "docs/SINGLE_SOURCE_OF_TRUTH.md",
+    "docs/GUIALITA_PHASE_STATUS.md",
+    "docs/LFM25_AUDIO_AUDIT.md",
+    "docs/LFM25_AUDIO_AUDIT_V2.md",
+    "PROTOTYPEN/README.md",
+    "README.md",
     ".github/workflows/state-consistency.yml",
 )
 
@@ -61,6 +67,10 @@ FORBIDDEN_CURRENT = (
     "PASS — 39 Tests über scripts/test.py",
     "## Nächste Milestones",
     "Freigabe für P3–P6 (neue Schichten) steht aus.",
+    "MUSCAL ist `future_target: PLANNED`",
+    "Aktueller Stand: Voice Activation V1",
+    "Voraussetzung: Backend läuft.",
+    "## Phasenplan",
 )
 
 REQUIRED_INVARIANTS = (
@@ -115,6 +125,39 @@ def required_phrases(total: int, suites: int, root: Path = ROOT) -> dict[str, li
         "docs/SESSION_LOG.md": [
             number_phrase,
             "P3–P6 umgesetzt",
+            "Live-Abnahme",
+        ],
+        "docs/HEARTBEAT.md": [
+            number_phrase,
+            "Aktueller Stand — 2026-11-13",
+            "7 PASS, 12 NOT EXECUTED, 0 FAIL",
+        ],
+        "docs/SINGLE_SOURCE_OF_TRUTH.md": [
+            "ADR-002-Werkzeuge",
+            "docs/GUIALITA_STATE.yaml",
+        ],
+        "docs/GUIALITA_PHASE_STATUS.md": [
+            "ADR-002: Agenten-Orchestrierung",
+        ],
+        "docs/LFM25_AUDIO_AUDIT.md": [
+            "Historischer Beleg",
+            "docs/GUIALITA_STATE.yaml",
+        ],
+        "docs/LFM25_AUDIO_AUDIT_V2.md": [
+            "Historischer Beleg",
+            "docs/GUIALITA_STATE.yaml",
+        ],
+        "PROTOTYPEN/README.md": [
+            "NICHT ANGEBUNDEN",
+            "maßgebliche Zustand",
+        ],
+        "README.md": [
+            number_phrase,
+            "Maßgeblicher",
+            "Historischer Phasenplan (kein Status)",
+        ],
+        ".github/workflows/state-consistency.yml": [
+            "python3 scripts/check_docs.py",
         ],
     }
 

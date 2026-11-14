@@ -297,7 +297,8 @@ testing:
       - "python3 scripts/build_golden.py --check: OK"
       - "python3 scripts/build_roles.py --check: OK"
       - "python3 scripts/roles.py validate --check-mirror: OK"
-      - "python3 scripts/check_docs.py: OK"
+      - "python3 scripts/check_docs.py: OK über 13 aktuelle Dokumente inkl. README, Forensik-Audits und Prototypen"
+      - "MUSCAL-HTTP-Livepreview auf 0.0.0.0:8099: /health 200, /pipelines 200, /guard lehnt /etc ab, POST /run ok, fehlendes task -> 400"
       - "python3 scripts/run_all_tests.py --check-state: Keine Abweichung"
       - "python3 scripts/run_all_tests.py: 7 PASS, 12 NOT EXECUTED, 0 FAIL"
     not_measured:

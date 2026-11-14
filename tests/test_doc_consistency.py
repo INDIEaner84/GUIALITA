@@ -20,13 +20,26 @@ import check_docs  # noqa: E402
 class TestDocConsistency(unittest.TestCase):
 
     def test_repository_checks_pass(self):
-        self.assertEqual(check_docs.run_checks(Path(PROJECT_DIR)), [])
+        root = Path(PROJECT_DIR)
+        self.assertEqual(check_docs.run_checks(root), [])
+        # Der Sweep deckt nicht nur die SSOT ab, sondern auch README,
+        # Forensik-Audits, Prototypen und den CI-Workflow.
+        for relative in ("README.md", "docs/LFM25_AUDIO_AUDIT.md",
+                         "docs/LFM25_AUDIO_AUDIT_V2.md",
+                         "PROTOTYPEN/README.md",
+                         ".github/workflows/state-consistency.yml"):
+            self.assertIn(relative, check_docs.CURRENT_FILES)
+            self.assertIn(relative, check_docs.required_phrases(307, 19, root))
+        self.assertEqual(len(check_docs.CURRENT_FILES), 13)
 
     def test_forbidden_current_phrase_is_detected(self):
         hits = check_docs.forbidden_in(
-            "Wir haben **136\nTestfunktionen in 9 Suiten** und keine MUSCAL-Schichten.")
+            "Wir haben **136\nTestfunktionen in 9 Suiten** und keine MUSCAL-Schichten. "
+            "Voraussetzung: Backend läuft. ## Phasenplan")
         self.assertTrue(any("136 Testfunktionen" in h for h in hits))
         self.assertTrue(any("MUSCAL-Schichten" in h for h in hits))
+        self.assertTrue(any("Voraussetzung: Backend" in h for h in hits))
+        self.assertTrue(any("## Phasenplan" in h for h in hits))
 
     def test_required_phrase_missing_is_detected(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -43,6 +56,8 @@ class TestDocConsistency(unittest.TestCase):
             problems = check_docs.check_required_phrases(root)
             self.assertTrue(problems)
             self.assertTrue(any("aktuelle Formulierung fehlt" in p for p in problems))
+            self.assertTrue(any("README.md" in p for p in problems))
+            self.assertTrue(any("LFM25_AUDIO_AUDIT" in p for p in problems))
 
     def test_required_phrases_pass_when_present(self):
         with tempfile.TemporaryDirectory() as tmp:

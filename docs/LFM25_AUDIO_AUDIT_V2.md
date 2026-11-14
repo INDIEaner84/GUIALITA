@@ -1,5 +1,11 @@
 # GUIALITA LFM2.5-Audio Capability Audit V2
 
+> **Historischer Beleg (2026-08-19, Read-Only Forensic).** Aussagen wie
+> „NICHT IMPLEMENTIERT" beschreiben den Stand **vor** der TTS-Implementierung.
+> Sie sind keine aktuelle Statusangabe. Maßgeblich ist
+> `docs/GUIALITA_STATE.yaml`.
+
+
 **Mode**: Forensic / Read-Only
 **Date**: 2026-08-19
 **Baseline**: GUIALITA-GRAPH-VISUALIZATION-V1-PASS (unverändert)

@@ -67,7 +67,7 @@ roles:
   coder:
     description: "Aendert Code minimal-invasiv und erklaert die Differenz."
     model: "granite-8b"
-    prompt: "Aendere den Code minimal-invasiv. Erklaere vor der Aenderung, welche Zeilen betroffen sind und warum. Keine Umformatierung unrelated Stellen."
+    prompt: "Aendere den Code minimal-invasiv. Erklaere vor der Aenderung, welche Zeilen betroffen sind und warum. Keine Umformatierung unbeteiligter Stellen."
     output_schema: "diff"
     eval: "evals/roles/coder.json"
     tools: ["read_file", "write_file", "run_tests"]
