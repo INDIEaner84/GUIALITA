@@ -28,6 +28,7 @@ Schritte.
 | Reproduzierbarkeitsregel | dokumentiert: gitignored-Pfade neu aufbauen, Verifikation neu ausführen |
 | Vorschau-Tauglichkeit | geprüft: fremder `Host` → 200, CORS `*`, Frontend nur relative Pfade |
 | Session-Abschluss | archiviert; Überführung nach `main` per PR (durch Nutzer autorisiert) |
+| Folge-Session `arena/180fbd4a-guialita` | Fast-Forward auf `1bee303`, GUI + 3 Prototypen in Vorschau geprüft, `scripts/test.py` Overall-Ausgabe gehärtet, 6 PASS / 0 FAIL / 3 NOT_EXECUTED bestätigt |
 
 Mock-Läufe werden als `PASS (mock)` ausgewiesen: Sie beweisen Chat-, Memory-,
 Audit- und API-Pfad, **nicht** Inferenz, GPU, STT oder TTS.
