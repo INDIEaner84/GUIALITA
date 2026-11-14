@@ -416,6 +416,73 @@ Session wird archiviert. Branch `arena/ba3bbc69-guialita` wird per PR in `main`
 und alle `docs/PHASE_*`-Berichte bleiben unverändert: sie sind historische
 Belege und werden nach ihrer Erstellung nicht mehr geändert.
 
+## 2026-11-13 — GUI-/Prototypen-Vorschau, main-Integration (`1bee303`) und Session-Abschluss (`arena/180fbd4a-guialita`)
+
+**Auftrag:** GUI und Prototypen in der Live-Vorschau öffnen, anschließend das
+aktuelle `origin/main` ziehen, Konflikt-frei abgleichen, verifizieren und die
+Session per Commit, Push, PR und Merge abschließen (Autorisierung erteilt).
+
+### 1. Ausgangslage und `main`-Abgleich
+
+- Branch: `arena/180fbd4a-guialita` (ursprünglich abgezweigt von `4b3762b`)
+- `git fetch origin main` zeigte den neu gemergten Stand `1bee303`
+  (Merge von PR #3 `arena/ba3bbc69-guialita`: `AGENTS.md`, `scripts/local_update.sh`,
+  `backend/adapters/mock_adapter.py`, Lifespan- und Audit-/Memory-Korrekturen).
+- Integration erfolgte Konflikt-frei per Fast-Forward (`git merge --ff-only origin/main`
+  von `4b3762b` auf `1bee303`).
+
+### 2. Live-Vorschau (GUI + Prototypen)
+
+- Produktive GUI (`backend/main.py` mit `GUIALITA_MOCK_LLM=1`) auf `0.0.0.0:8080`
+  gestartet (`/` → HTTP 200, `/graph` → HTTP 200, `/health` → HTTP 200).
+- Drei isolierte Next.js-Erkundungsprototypen unter `PROTOTYPEN/` zur Ansicht
+  auf `0.0.0.0:3001` (`local-lfm-api-foundation` inkl. internem Mock-LFM-Server
+  auf `127.0.0.1:8000`), `0.0.0.0:3002` (`local-multimodal-desktop-agent`) und
+  `0.0.0.0:3003` (`multimodal-ui-builder-agent (Kopie 1)`) gestartet (alle HTTP 200).
+- Keine getrackten Dateien unter `PROTOTYPEN/` verändert; `node_modules/` und
+  `.next/` bleiben gemäß `.gitignore` unversioniert.
+
+### 3. Kleine Korrektur in `scripts/test.py`
+
+- **Befund:** Wenn der Unit-Lauf in `scripts/test.py` fehlschlug (`unit_rc != 0`,
+  z. B. bei fehlendem `pytest`), gab das Skript trotz Exit-Code `1` am Ende
+  unbedingt `Overall: PASS (unit layer only; use --live for runtime tests)` aus.
+- **Änderung:** `Overall:` gibt nun wahrheitsgemäß `PASS` nur bei `rc == 0` und
+  sonst `BLOCKED/FAIL` aus (sowohl im Standard- als auch im `--live`-Modus).
+
+### 4. Evidenz — Frischer Verifikationslauf auf `1bee303` + Fix
+
+```
+python -m compileall -q backend scripts tests → OK (Exit 0)
+scripts/doctor.py                             → Result: READY (7 Modelle, mock-1b verfügbar, TTS MISSING)
+scripts/test.py                               → UNIT: PASS · Overall: PASS (46 passed)
+scripts/run_all_tests.py (GUIALITA_MOCK_LLM=1):
+  test_voice_activation.py    PASS                37/37
+  test_memory.py              PASS (mock)         16/16
+  test_memory_retrieval.py    PASS (mock)  13/17 (4 skip)
+  test_memory_graph.py        PASS (mock)  12/14 (2 skip)
+  test_graph_visualization.py PASS          8/13 (5 skip)
+  test_api.py                 PASS (mock)  22/27 (5 skip)
+  test_tts.py                 NOT EXECUTED  fehlt: TTS-Runtime
+  test_capture.py             NOT EXECUTED  fehlt: Mikrofon / PortAudio, espeak-ng
+  test_process_audio.py       NOT EXECUTED  fehlt: LFM-Audio-Runtime, espeak-ng
+
+  Suiten PASS: 6 | FAIL: 0 | NOT EXECUTED: 3
+  Testfunktionen: 145 | bewertbar ausgeführt: 124 | bestanden: 108 |
+  fehlgeschlagen: 0 | übersprungen (skip): 16 | Exit-Code: 0
+```
+
+### 5. Offene Punkte (unverändert)
+
+- Echte Runtime-Abnahme (GGUF-Modelle, `llama-cpp-python`, whisper.cpp,
+  `llama-liquid-audio-cli`, PortAudio, `espeak-ng`) bleibt auf der
+  Referenzmaschine ohne `--mock` auszuführen (`bash scripts/local_update.sh`).
+- Gate `voice_forensics_v1` bleibt `OPEN` (`scripts/measure_voice_turn.py --record --turns 3`
+  auf Zielhardware erforderlich).
+- `next_authorized_phase: NONE` und `hard_stop: true` in `docs/GUIALITA_STATE.yaml`
+  bleiben unverändert bestehen; `docs/INTEGRITY_MARKER.txt` und alle
+  `docs/PHASE_*`-Berichte bleiben unangetastet.
+
 ## Nachvollziehbarkeitsregel
 
 - Quellcodeänderungen werden über Git-Commits gespeichert.
