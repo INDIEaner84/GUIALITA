@@ -103,8 +103,30 @@ python3 -m compileall -q backend scripts tests → RC 0
 git diff --check                              → RC 0
 ```
 
-Der Workflow `State Consistency` ist auf GitHub `active`; Details und
+Der Workflow `State Consistency` ist auf GitHub `active` und auf dem
+Merge-Commit `54c521d` zweimal grün: Push-Run `43626009032` und
+Pull-Request-Run `43626127557` (je 16/16 Schritte). Details und weitere
 Run-IDs stehen in `docs/SESSION_LOG.md`.
+
+## PR #5
+
+`gh pr create` → **PR #5**, `OPEN`, `mergeable: MERGEABLE`, Basis `main`,
+Head `arena/f82209dd-guialita`. Der trockene Gegen-Merge
+(`git merge-tree --write-tree origin/main HEAD`) liefert RC 0 — die
+Konflikte sind also auch aus Sicht von `main` aufgelöst.
+
+`mergeStateStatus` ist `UNSTABLE`, weil der auf `pull_request` laufende
+Workflow `Auto PR Review` (`.github/workflows/audit-pr.yml`, externe
+OpenCode/OpenRouter-Action) mit `review → failure` endet. Das ist **kein
+Fehler dieser Integration**: derselbe Check ist auf PR #3 und PR #4
+ebenfalls fehlgeschlagen, und beide PRs wurden gemergt. Der für dieses
+Repository maßgebliche Check `Inventar, Werkzeuge ↔ SSOT` ist auf dem
+Pull-Request-Run `43626127557` grün. Der fremde Review-Workflow wurde nicht
+geändert — das braucht eine eigene Freigabe und vermutlich ein konfiguriertes
+Secret bzw. einen externen Dienst.
+
+Die Übernahme nach `main` bleibt eine Review-Entscheidung; dieser PR wurde
+nicht selbst gemergt.
 
 ## Grenzen
 
